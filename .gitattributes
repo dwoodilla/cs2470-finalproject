@@ -40,3 +40,8 @@ data/downloaded/quantaq/MOD-00812.csv filter=lfs diff=lfs merge=lfs -text
 data filter=lfs diff=lfs merge=lfs -text
 *.json filter=lfs diff=lfs merge=lfs -text
 *.csv filter=lfs diff=lfs merge=lfs -text
+data/downloaded/aqs/myron2015.json filter=lfs diff=lfs merge=lfs -text
+data/downloaded/aqs/myron2016.json filter=lfs diff=lfs merge=lfs -text
+data/downloaded/aqs/myron2017.json filter=lfs diff=lfs merge=lfs -text
+data/downloaded/aqs/myron2018.json filter=lfs diff=lfs merge=lfs -text
+data/downloaded/aqs/myron2014.json filter=lfs diff=lfs merge=lfs -text
