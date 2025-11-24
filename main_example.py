@@ -22,9 +22,10 @@ def parse_args(args=None):
         parse_args('--type', 'rnn', ...)
     """
     parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--type',           required=True,              choices=['rnn', 'transformer'],     help='Type of model to train')
+    parser.add_argument('--type',           required=True,              choices=['aqs-forecast', 'lcs-calibration'],     help='Type of prediction task')
+    parser.add_argument('--arch',           required=True,              choices=['encoder-decoder', 'attention'],       help='Type of model architecture to use')
     parser.add_argument('--task',           required=True,              choices=['train', 'test', 'both'],  help='Task to run')
-    parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
+    # parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
     parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
     parser.add_argument('--lr',             type=float, default=1e-3,   help='Model\'s learning rate')
     parser.add_argument('--optimizer',      type=str,   default='adam', choices=['adam', 'rmsprop', 'sgd'], help='Model\'s optimizer')
@@ -33,17 +34,19 @@ def parse_args(args=None):
     parser.add_argument('--window_size',    type=int,   default=20,     help='Window size of text entries.')
     parser.add_argument('--chkpt_path',     default='',                 help='where the model checkpoint is')
     parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
-    if args is None: 
-        return parser.parse_args()      ## For calling through command line
-    return parser.parse_args(args)      ## For calling through notebook.
+    return parser.parse_args()      ## For calling through command line
 
 
 def main(args):
 
     ##############################################################################
     ## Data Loading
-    with open(args.data, 'rb') as data_file:
-        data_dict = pickle.load(data_file)
+
+    dataset:tf.data.Dataset 
+    if args.type == 'aqs-forecast': dataset = tf.data.Dataset.load('./data/myron_tfg_dataset')
+    else: raise NotImplementedError()
+    # else: dataset = tf.data.Dataset.load('[TODO]')
+
 
     # feat_prep = lambda x: np.repeat(np.array(x).reshape(-1, 2048), 5, axis=0)
     # # img_prep  = lambda x: np.repeat(x, 5, axis=0)
