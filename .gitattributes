@@ -1,48 +1,53 @@
-data/downloaded/aqs filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n filter=lfs diff=lfs merge=lfs -text
-data/downloaded/quantaq filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2019.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2020.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2021.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2022.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2023.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2024.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2025.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/medschool.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/mtpleasant.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/ricollege.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/rocklib.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/silverlake.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/cfs.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/martialarts.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/prek.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/southprovlib.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/unitedway.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/pha.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/blackstone.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/carnevale.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/myron.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/pema.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/rochambeaulib.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/rockspot.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/smithhilllib.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/ccri.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/reservoir.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/wecc.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/zuccolo.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/provcollege.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/dpw.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/beaco2n/ecubed.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/quantaq/MOD-00809.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/quantaq/MOD-00810.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/quantaq/MOD-00811.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/quantaq/MOD-00812.csv filter=lfs diff=lfs merge=lfs -text
-data filter=lfs diff=lfs merge=lfs -text
 *.json filter=lfs diff=lfs merge=lfs -text
 *.csv filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2015.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2016.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2017.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2018.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/aqs/myron2014.json filter=lfs diff=lfs merge=lfs -text
-data/downloaded/met_ds.json filter=lfs diff=lfs merge=lfs -text
+*.pkl filter=lfs diff=lfs merge=lfs -text
+
+# data/downloaded/aqs filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/quantaq filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2019.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2020.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2021.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2022.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2023.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2024.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2025.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/medschool.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/mtpleasant.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/ricollege.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/rocklib.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/silverlake.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/cfs.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/martialarts.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/prek.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/southprovlib.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/unitedway.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/pha.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/blackstone.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/carnevale.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/myron.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/pema.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/rochambeaulib.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/rockspot.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/smithhilllib.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/ccri.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/reservoir.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/wecc.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/zuccolo.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/provcollege.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/dpw.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/beaco2n/ecubed.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/quantaq/MOD-00809.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/quantaq/MOD-00810.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/quantaq/MOD-00811.csv filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/quantaq/MOD-00812.csv filter=lfs diff=lfs merge=lfs -text
+# data filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2015.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2016.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2017.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2018.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/aqs/myron2014.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded/met_ds.json filter=lfs diff=lfs merge=lfs -text
+# data/downloaded filter=lfs diff=lfs merge=lfs -text
+# data/joined_met_aq_ds.json filter=lfs diff=lfs merge=lfs -text
+# data/joined_met_aq_ds.pckl filter=lfs diff=lfs merge=lfs -text
