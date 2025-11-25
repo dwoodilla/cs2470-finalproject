@@ -42,6 +42,16 @@ def get_na_mask(x:tf.Tensor) -> tf.Tensor:
     return tf.where(mask, 0.0, 1.0)
 
 def main(args) :
+    # === Load dataset ===
+    ds = tf.data.Dataset.load(args.data)
+    ds_train, ds_test = keras.utils.split_dataset(
+        dataset   = ds,
+        left_size = 0.8,
+        shuffle   = True,
+        seed      = 0
+    )
+    ds_train = ds_train.batch(args.batch_size)
+    ds_test  = ds_test .batch(args.batch_size)
 
     # === Instantiate model ===
     model_class = {
@@ -75,13 +85,6 @@ def main(args) :
         ]
     )
 
-    # ds_train, ds_test = tf.data.Dataset.load(
-    #     path = args.data, 
-    #     split = ['train[:80%]','test[80%:]']
-    # )
-    # ds_train.batch(args.batch_size)
-    # ds_test .batch(args.batch_size)
-
     # === Train model ===
     model.fit(
         x = ds_train,
@@ -92,26 +95,5 @@ def main(args) :
     )
     print(eval)
 
-
-# def train_model(model, captions, img_feats, pad_idx, args, valid):
-#     '''
-#     Trains model and returns model statistics.
-#     This function is adapted from HW4: Imcap. Credit goes to HW4 authors.
-#     '''
-#     stats = []
-#     try:
-#         for epoch in range(args.epochs):
-#             stats += [model.train(captions, img_feats, pad_idx, batch_size=args.batch_size)]
-#             if args.check_valid:
-#                 model.test(valid[0], valid[1], pad_idx, batch_size=args.batch_size)
-#     except KeyboardInterrupt as e:
-#         if epoch > 0:
-#             print("Key-value interruption. Trying to early-terminate. Interrupt again to not do that!")
-#         else: 
-#             raise e
-        
-#     return stats
-
 if __name__=="__main__":
     main(parse_args())
-    # main()
