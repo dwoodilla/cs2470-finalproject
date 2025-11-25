@@ -2,6 +2,16 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 import keras
+from tqdm import tqdm
+
+# class CustomModel(keras.Model):
+#     def __init__(self, **kwargs):
+#         super().__init__(**kwargs)
+#     def call(self):
+#         raise NotImplementedError
+    
+#     def train(self, )
+
 
 @keras.saving.register_keras_serializable("AQCalib")
 class LSTNet(keras.Model):

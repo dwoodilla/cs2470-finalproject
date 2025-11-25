@@ -3,6 +3,7 @@ import tensorflow as tf
 import keras
 import numpy as np
 import models
+import tensorflow_datasets as tfds
 
 def parse_args(args=None):
     """ 
@@ -10,9 +11,9 @@ def parse_args(args=None):
     Credit goes to HW4 authors.
     """
     parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--arch',           required=True,              choices=['lstnet', 'custom_forecaster','calibrator'],     
+    parser.add_argument('--arch',           required=True,              choices=['lstnet', 'custom_forecaster', 'calibrator'],     
         help='Type of model to train. LSTNet and custom_forecaster perform AQS time series forecasting for use in linear regression calibration, \
-            while calibrator calibrates low-cost sensors directly.')
+            while calibrator performs a deep calibration of low-cost sensors using predicted AQS time series.')
     parser.add_argument('--task',           required=True,              choices=['train', 'test', 'both'],  help='Task to run')
     parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
     parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
@@ -24,42 +25,93 @@ def parse_args(args=None):
     parser.add_argument('--chkpt_path',     default='',                 help='Where the model checkpoint is.')
     parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
 
-#     return parser.parse_args()
+    return parser.parse_args()
 
 def apply_na_mask(x:tf.Tensor) -> tf.Tensor:
+    '''
+    returns a new tensor with NaNs replaced with 0's
+    '''
     mask = tf.math.is_nan(x)
     return tf.where(mask, 0.0, x)
 
+def get_na_mask(x:tf.Tensor) -> tf.Tensor:
+    '''
+    returns mask for element-wise multiplication (i.e. for loss)
+    '''
+    mask = tf.math.is_nan(x)
+    return tf.where(mask, 0.0, 1.0)
+
 def main(args) :
-    ds = tf.data.Dataset.load(args.data)
-    batched = ds.batch(args.batch_size)
 
-    batched = ds.batch(5) # Don't shuffle data, as it is chronological
-    batch1 = apply_na_mask(next(iter(batched))[0])
-    print(batch1.shape)
-    pred = models.LSTNet(time_window=20, input_dim=12, hidden_dim=12)(batch1)
-    print(pred.shape)
-    print(pred)
+    # === Instantiate model ===
+    model_class = {
+        "lstnet" : models.LSTNet
+    }[args.arch]
 
-def train_model(model, captions, img_feats, pad_idx, args, valid):
-    '''
-    Trains model and returns model statistics.
-    This function is adapted from HW4: Imcap. Credit goes to HW4 authors.
-    '''
-    stats = []
-    try:
-        for epoch in range(args.epochs):
-            stats += [model.train(captions, img_feats, pad_idx, batch_size=args.batch_size)]
-            if args.check_valid:
-                model.test(valid[0], valid[1], pad_idx, batch_size=args.batch_size)
-    except KeyboardInterrupt as e:
-        if epoch > 0:
-            print("Key-value interruption. Trying to early-terminate. Interrupt again to not do that!")
-        else: 
-            raise e
+    model = model_class(
+        input_dim=12,
+        time_window=args.window_size,
+        hidden_dim=args.hidden_size
+    )
+
+    # === Instantiate optimizer and loss ===
+    optimizer_class = {
+        'adam'      : keras.optimizers.Adam,
+        'rmsprop'   : keras.optimizers.RMSprop,
+        'sgd'       : keras.optimizers.SGD
+    }[args.optimizer]
+
+    optimizer = optimizer_class(
+        learning_rate = args.lr
+    )
+
+    # === Compile model ===
+    model.compile(
+        optimizer = optimizer,
+        loss = keras.metrics.MeanSquaredError(),
+        metrics = [
+            keras.metrics.MeanAbsoluteError(), 
+            keras.metrics.RootMeanSquaredError()
+        ]
+    )
+
+    # ds_train, ds_test = tf.data.Dataset.load(
+    #     path = args.data, 
+    #     split = ['train[:80%]','test[80%:]']
+    # )
+    # ds_train.batch(args.batch_size)
+    # ds_test .batch(args.batch_size)
+
+    # === Train model ===
+    model.fit(
+        x = ds_train,
+        epochs = args.epochs
+    )
+    eval = model.evaluate(
+        x = ds_test
+    )
+    print(eval)
+
+
+# def train_model(model, captions, img_feats, pad_idx, args, valid):
+#     '''
+#     Trains model and returns model statistics.
+#     This function is adapted from HW4: Imcap. Credit goes to HW4 authors.
+#     '''
+#     stats = []
+#     try:
+#         for epoch in range(args.epochs):
+#             stats += [model.train(captions, img_feats, pad_idx, batch_size=args.batch_size)]
+#             if args.check_valid:
+#                 model.test(valid[0], valid[1], pad_idx, batch_size=args.batch_size)
+#     except KeyboardInterrupt as e:
+#         if epoch > 0:
+#             print("Key-value interruption. Trying to early-terminate. Interrupt again to not do that!")
+#         else: 
+#             raise e
         
-    return stats
+#     return stats
 
 if __name__=="__main__":
-    # main(parse_args())
-    main()
+    main(parse_args())
+    # main()
