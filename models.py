@@ -16,9 +16,14 @@ from tqdm import tqdm
 @keras.saving.register_keras_serializable("AQCalib")
 class LSTNet(keras.Model):
 
-    def __init__(self, input_dim:int, time_window:int, hidden_dim:int, **kwargs):
+    def __init__(self,  
+        time_window:int, 
+        hidden_dim:int,
+        input_dim:int=12,
+        output_dim:int=5, 
+        **kwargs
+    ):
         super().__init__(**kwargs)
-        output_dim = input_dim
 
         self.feat_conv = keras.layers.Conv2D(
             filters=hidden_dim,
@@ -47,12 +52,28 @@ class LSTNet(keras.Model):
     
     def call(self, inputs:tf.Tensor, training=None, mask=None) -> tf.Tensor:
         y = self.time_conv(inputs)
+        tf.print(
+            "time_conv",
+            y.shape
+        )
 
-        y = tf.expand_dims(y, axis=-1)
-        y = self.feat_conv(y)
-        y = tf.squeeze(y, axis=-2)
+        # y = tf.expand_dims(y, axis=-1)
+        # y = self.feat_conv(y)
+        # y = tf.squeeze(y, axis=-2)
+        # tf.print(
+        #     "feat_conv",
+        #     y.shape
+        # )
 
         y = self.lstm(y)
+        tf.print(
+            "lstm",
+            y.shape
+        )
         y = self.auto_regressor(inputs) \
             + self.latent_projection(y)
+        tf.print(
+            "proj",
+            y.shape
+        )
         return y

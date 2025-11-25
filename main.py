@@ -59,7 +59,7 @@ def main(args) :
     }[args.arch]
 
     model = model_class(
-        input_dim=12,
+        # input_dim=12,
         time_window=args.window_size,
         hidden_dim=args.hidden_size
     )
