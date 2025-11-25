@@ -3,41 +3,46 @@ import pandas as pd
 import tensorflow as tf
 import keras
 
-@keras.saving.register_keras_serializable()
-class LSTNet(keras.layers.Layer):
+@keras.saving.register_keras_serializable("AQCalib")
+class LSTNet(keras.Model):
 
-    def __init__(self, input_dim:int, hidden_dim:int, output_dim:int, p:float, **kwargs):
+    def __init__(self, input_dim:int, time_window:int, hidden_dim:int, **kwargs):
         super().__init__(**kwargs)
+        output_dim = input_dim
 
-        self.conv1d = keras.layers.Conv1D(
+        self.feat_conv = keras.layers.Conv2D(
             filters=hidden_dim,
-            kernel_size=input_dim,
+            kernel_size=(1,input_dim),
+            padding='valid',
+            activation='relu'
+        )
+        self.time_conv = keras.layers.Conv1D(
+            filters=hidden_dim,
+            kernel_size=time_window,
             padding='causal',
-            activation='relu',
-            training=kwargs['training']
+            activation='relu'
         )
-
-        self.rnn = keras.layers.LSTM(
+        self.lstm = keras.layers.LSTM(
             units=hidden_dim,
-            return_sequences=True,
-            training=kwargs['training']
+            return_sequences=True
         )
-        self.projection = keras.layers.Dense(
+        self.latent_projection = keras.layers.Dense(
             units=output_dim,
             activation='relu'
         )
-
-        self.regularizer = keras.layers.Dense(
+        self.auto_regressor = keras.layers.Dense(
             units=output_dim,
             activation=None
         )
     
-    def __call__(self, x:tf.Tensor) -> tf.Tensor:
-        l1 = self.conv1d(x),
-        l2 = self.rnn(l1),
-        l3 = self.regularizer(x) + self.projection(l2)
-        return l3
-    
-    # def train(self, batch:)
+    def call(self, inputs:tf.Tensor, training=None, mask=None) -> tf.Tensor:
+        y = self.time_conv(inputs)
 
+        y = tf.expand_dims(y, axis=-1)
+        y = self.feat_conv(y)
+        y = tf.squeeze(y, axis=-2)
 
+        y = self.lstm(y)
+        y = self.auto_regressor(inputs) \
+            + self.latent_projection(y)
+        return y
