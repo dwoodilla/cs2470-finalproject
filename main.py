@@ -15,6 +15,7 @@ import logging
 import models
 import metrics
 
+
 def parse_args(args=None):
     """
     This argument parser is adapted from HW4: Imcap.
@@ -40,14 +41,12 @@ def parse_args(args=None):
 def main(args) :
     # === Load dataset ===
     ds = tf.data.Dataset.load(args.data)
-    ds_train, ds_test = keras.utils.split_dataset(
-        dataset   = ds,
-        left_size = 0.8,
-        shuffle   = True,
-        seed      = 0
-    )
-    ds_train = ds_train.batch(args.batch_size)
-    ds_test  = ds_test .batch(args.batch_size)
+
+    card = ds.cardinality().numpy()
+    train_sz = int(0.8*card)
+    ds = ds.shuffle(buffer_size=card, seed=0)
+    ds_train = ds.take(train_sz).batch(args.batch_size)
+    ds_test  = ds.skip(train_sz).batch(args.batch_size)
 
     # === Instantiate model ===
     model_class = {
