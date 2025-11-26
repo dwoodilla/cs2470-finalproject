@@ -1,25 +1,12 @@
-import numpy as np
-import pandas as pd
 import tensorflow as tf
 import keras
-from tqdm import tqdm
 
-# class CustomModel(keras.Model):
-#     def __init__(self, **kwargs):
-#         super().__init__(**kwargs)
-#     def call(self):
-#         raise NotImplementedError
-    
-#     def train(self, )
-
-
-@keras.saving.register_keras_serializable("AQCalib")
+@keras.saving.register_keras_serializable()
 class LSTNet(keras.Model):
-
     def __init__(self,  
         time_window:int, 
         hidden_dim:int,
-        input_dim:int=12,
+        input_dim:int=24,
         output_dim:int=5, 
         **kwargs
     ):
@@ -51,29 +38,38 @@ class LSTNet(keras.Model):
         )
     
     def call(self, inputs:tf.Tensor, training=None, mask=None) -> tf.Tensor:
-        y = self.time_conv(inputs)
         tf.print(
-            "time_conv",
-            y.shape
+            'Inputs: ',
+            inputs,
+            sep='\n',
+            output_stream='file:///Users/mikewoodilla/csci2470/fp/models.log',
+            summarize=-1
         )
+        tf.debugging.assert_all_finite(inputs, 'inputs non-finite')
 
-        # y = tf.expand_dims(y, axis=-1)
-        # y = self.feat_conv(y)
-        # y = tf.squeeze(y, axis=-2)
-        # tf.print(
-        #     "feat_conv",
-        #     y.shape
-        # )
+        y = self.time_conv(inputs)
+
+        tf.print(
+            'y: ',
+            y,
+            sep='\n',
+            output_stream='file:///Users/mikewoodilla/csci2470/fp/models.log',
+            summarize=-1
+        )
+        tf.debugging.assert_all_finite(
+            y, 
+            f'time_conv yields infinite values: y.shape = {y.shape}, inputs.shape = {inputs.shape}'
+        )
+        '''
+        time_conv yields NaN values
+        y.shape = (None, 20, 24), inputs.shape = (None, 20, 24)
+        '''
+
+        y = tf.expand_dims(y, axis=-1)
+        y = self.feat_conv(y)
+        y = tf.squeeze(y, axis=-2)
 
         y = self.lstm(y)
-        tf.print(
-            "lstm",
-            y.shape
-        )
         y = self.auto_regressor(inputs) \
             + self.latent_projection(y)
-        tf.print(
-            "proj",
-            y.shape
-        )
         return y

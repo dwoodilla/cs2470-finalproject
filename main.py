@@ -1,17 +1,27 @@
 import argparse
 import tensorflow as tf
 import keras
-import numpy as np
+import logging
+# import numpy as np
+# import tensorflow_datasets as tfds
+
+# logging.basicConfig(
+#     level=logging.INFO,
+#     filename="training.log",
+#     filemode="w",
+#     format="%(asctime)s %(name)s [%(levelname)s] %(message)s",
+# )
+
 import models
-import tensorflow_datasets as tfds
+import metrics
 
 def parse_args(args=None):
-    """ 
-    This argument parser is adapted from HW4: Imcap. 
+    """
+    This argument parser is adapted from HW4: Imcap.
     Credit goes to HW4 authors.
     """
     parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--arch',           required=True,              choices=['lstnet', 'custom_forecaster', 'calibrator'],     
+    parser.add_argument('--arch',           required=True,              choices=['lstnet', 'custom_forecaster', 'calibrator'],
         help='Type of model to train. LSTNet and custom_forecaster perform AQS time series forecasting for use in linear regression calibration, \
             while calibrator performs a deep calibration of low-cost sensors using predicted AQS time series.')
     parser.add_argument('--task',           required=True,              choices=['train', 'test', 'both'],  help='Task to run')
@@ -26,20 +36,6 @@ def parse_args(args=None):
     parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
 
     return parser.parse_args()
-
-def apply_na_mask(x:tf.Tensor) -> tf.Tensor:
-    '''
-    returns a new tensor with NaNs replaced with 0's
-    '''
-    mask = tf.math.is_nan(x)
-    return tf.where(mask, 0.0, x)
-
-def get_na_mask(x:tf.Tensor) -> tf.Tensor:
-    '''
-    returns mask for element-wise multiplication (i.e. for loss)
-    '''
-    mask = tf.math.is_nan(x)
-    return tf.where(mask, 0.0, 1.0)
 
 def main(args) :
     # === Load dataset ===
@@ -59,9 +55,8 @@ def main(args) :
     }[args.arch]
 
     model = model_class(
-        # input_dim=12,
-        time_window=args.window_size,
-        hidden_dim=args.hidden_size
+        time_window = args.window_size,
+        hidden_dim  = args.hidden_size
     )
 
     # === Instantiate optimizer and loss ===
@@ -78,10 +73,10 @@ def main(args) :
     # === Compile model ===
     model.compile(
         optimizer = optimizer,
-        loss = keras.metrics.MeanSquaredError(),
+        loss = metrics.MaskedMSE(),
         metrics = [
-            keras.metrics.MeanAbsoluteError(), 
-            keras.metrics.RootMeanSquaredError()
+            metrics.MaskedMAE(),
+            metrics.MaskedRMSE()
         ]
     )
 
