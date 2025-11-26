@@ -3,10 +3,11 @@ import pandas as pd
 import numpy as np
 import json
 import os
-import rpy2.robjects as ro
-from rpy2.robjects.packages import importr
-from rpy2.robjects import pandas2ri
+# import rpy2.robjects as ro
+# from rpy2.robjects.packages import importr
+# from rpy2.robjects import pandas2ri
 
+"""
 PARAM_DICT = {
     "44201": "o3",
     "68105": "avg_temp",
@@ -48,13 +49,21 @@ aq_ds  = aq_ds.reset_index()
 
 # ==== IMPORT AND CLEAN NOAA MET DATA ====
 
-worldmet = importr("worldmet")
+# worldmet = importr("worldmet")
 
-ro.r('met_ds = worldmet::importNOAA(code=c("725070-14765"), year=1998:2025)')
+# ro.r(
+# '''
+#     met_ds = worldmet::importNOAA(code=c("725070-14765"), year=1998:2025)
+# '''
+# )
 
-met_ds:pd.DataFrame
-with (ro.default_converter + pandas2ri.converter).context():
-    met_ds = ro.r['met_ds'] # type: ignore
+# met_ds:pd.DataFrame
+# with (ro.default_converter + pandas2ri.converter).context():
+#     met_ds = ro.r['met_ds'] # type: ignore
+
+# met_ds.to_csv('./data/downloaded/met_tfg.csv')
+
+met_ds = pd.read_csv('./data/downloaded/met_tfg.csv')
 
 met_ds = met_ds.rename(
     columns={
@@ -116,48 +125,43 @@ ds = ds[[
     'Month Sine', 'Month Cosine',
     'Year Sine', 'Year Cosine',
     'Weekday',
-    'aq_temp','dew_point', 
+    'temp','dew_point', 
     'RH', 'ceil_hgt', 
     'wind_x', 'wind_y',
     'co', 'no', 'no2', 'o3', 'pm25'
 ]]
 
 ds.to_pickle('./data/preprocessed/aqmet_pd.pkl')
+"""
 
-ds_np = ds.to_numpy()[:,1:]
+ds = pd.read_pickle('./data/preprocessed/aqmet_pd.pkl')
+ds_np = ds.to_numpy(dtype=np.float32)[:,1:]
 del ds
-
-'''
-# singular_ts = ds[:,-5:]
-# def construct_unary_ds(array:np.ndarray, window_len:int =20):
-#     X=[]; Y=[]
-#     for i in range(len(array)-window_len):
-#         window = array[i:i+window_len]
-#         target = array[i+window_len, -5:]
-#         X.append(window); Y.append(target)
-#     return tf.data.Dataset.from_tensor_slices((X,Y))
-'''
 
 def construct_contextualized_ds(x:np.ndarray, window_len:int =20) -> tf.data.Dataset:
     
-    D = x.shape[-1]
-
-    finite = np.isfinite(x)
-    mask = finite.astype(np.float32)
-    array = np.where(finite, x, 0.0)
-    array = np.concatenate([array, mask], axis=-1)
+    is_finite_bool = np.isfinite(x)
+    is_finite_fl = is_finite_bool.astype(np.float32)
+    finite_x = np.where(is_finite_bool, x, 0.0)
 
     Xs=[]; Xc=[]; Y=[]
-    for i in range(len(array)-window_len):
-        Xs_window = array[i:i+window_len, :-5]
-        Xc_window  = array[i:i+window_len, -5:]
-        target = array[i+window_len, -5:]
-        Xs.append(Xs_window)
-        Xc.append(Xc_window)
-        Y.append(target)
+    for i in range(len(finite_x)-window_len):
+        Xs_window  = finite_x[i:i+window_len, -5:]
+        Xc_window = finite_x[i:i+window_len, :-5]
+        target = finite_x[i+window_len, -5:]
+
+        Xs_mask = is_finite_fl[i:i+window_len, -5:]
+        Xc_mask = is_finite_fl[i:i+window_len, :-5]
+        target_mask = is_finite_fl[i+window_len, -5:]
+
+        Xs_cat = np.concatenate([Xs_window, Xs_mask], axis=-1)
+        Xc_cat = np.concatenate([Xc_window, Xc_mask], axis=-1)
+        target_cat = np.concatenate([target, target_mask], axis=-1)
+
+        Xs.append(Xs_cat)
+        Xc.append(Xc_cat)
+        Y.append(target_cat)
     return tf.data.Dataset.from_tensor_slices(((Xs, Xc), Y))
 
-
-
 ds = construct_contextualized_ds(ds_np)
-
+ds.save('./data/datasets/myron_tfg_2')
