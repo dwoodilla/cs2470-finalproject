@@ -152,11 +152,9 @@ def construct_contextualized_ds(x:np.ndarray, window_len:int =20) -> tf.data.Dat
 
         Xs_mask = is_finite_fl[i:i+window_len, -5:]
         Xc_mask = is_finite_fl[i:i+window_len, :-5]
-        # target_mask = is_finite_fl[i+window_len, -5:]
 
         Xs_cat = np.concatenate([Xs_window, Xs_mask], axis=-1)
         Xc_cat = np.concatenate([Xc_window, Xc_mask], axis=-1)
-        # target_cat = np.concatenate([target, target_mask], axis=-1)
 
         Xs.append(Xs_cat)
         Xc.append(Xc_cat)

@@ -76,7 +76,8 @@ def main(args) :
         metrics = [
             metrics.MaskedMAE(),
             metrics.MaskedRMSE()
-        ]
+        ],
+        run_eagerly=True
     )
 
     # === Train model ===
