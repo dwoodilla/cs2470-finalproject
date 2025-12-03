@@ -134,7 +134,7 @@ ds = ds[[
 ds.to_pickle('./data/preprocessed/aqmet_pd.pkl')
 """
 
-ds = pd.read_pickle('./data/preprocessed/aqmet_pd.pkl')
+ds = pd.read_pickle('./aqmet_pd.pkl')
 ds_np = ds.to_numpy(dtype=np.float32)[:,1:]
 del ds
 

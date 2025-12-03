@@ -4,6 +4,8 @@ import keras
 import numpy as np
 import models
 import masked_metrics
+# import pandas as pd
+from pandas import read_pickle
 
 def parse_args(args=None):
     """
@@ -15,23 +17,42 @@ def parse_args(args=None):
         help='Type of model to train. LSTNet and custom_forecaster perform AQS time series forecasting for use in linear regression calibration, \
             while calibrator performs a deep calibration of low-cost sensors using predicted AQS time series.')
     parser.add_argument('--task',           required=True,              choices=['train', 'test', 'both'],  help='Task to run')
-    parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
+    parser.add_argument('--dataframe',      default='aqmet_pd.pkl',     help = 'File path to pandas dataframe pickle containing combined aq and met data.')
+    # parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
     parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
     parser.add_argument('--lr',             type=float, default=1e-3,   help='Model\'s learning rate')
     parser.add_argument('--optimizer',      type=str,   default='adam', choices=['adam', 'rmsprop', 'sgd'], help='Model\'s optimizer')
     parser.add_argument('--batch_size',     type=int,   default=100,    help='Model\'s batch size.')
     parser.add_argument('--hidden_size',    type=int,   default=256,    help='Hidden size used to instantiate the model.')
-    parser.add_argument('--window_size',    type=int,   default=6,     help='Length of time sequence window.')
+    parser.add_argument('--window_size',    type=int,   default=6,      help='Length of time sequence window.')
     parser.add_argument('--chkpt_path',     default='',                 help='Where the model checkpoint is.')
     parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
 
     return parser.parse_args()
 
 def construct_dataset(args):
-    
+
+    def flat_map_helper(x,y):
+        a,b = x
+        return tf.data.Dataset.zip(tf.data.Dataset.zip(a,b),y) #.batch(T)
+
+    dataframe = read_pickle(args.dataframe).to_numpy(dtype=np.float32)[:,1:] # omit the timestamp column; keep time encodings.
+
+    Xs = dataframe[:, -5:]
+    Xc = dataframe[:, :-5]
+
+    dataset = tf.data.Dataset.from_tensor_slices(((Xs[:-1], Xc[:-1]), Xs[1:]))
+    dataset = dataset.window(24, shift=1, drop_remainder=True)
+
+    # Not sure this is properly turning single rows into windows
+    # could also tensorize it, work with the tensor, then make it a dataset
+    dataset = dataset.flat_map(flat_map_helper)
 
 def main(args) :
     # === Load dataset ===
+
+    construct_dataset(args)
+
     ds = tf.data.Dataset.load(args.data)
 
     card = ds.cardinality().numpy()
