@@ -30,33 +30,44 @@ def parse_args(args=None):
 
     return parser.parse_args()
 
-def construct_dataset(args):
-
-    def flat_map_helper(x,y):
-        a,b = x
-        return tf.data.Dataset.zip(tf.data.Dataset.zip(a,b),y) #.batch(T)
+def construct_dataset(args, T):
 
     dataframe = read_pickle(args.dataframe).to_numpy(dtype=np.float32)[:,1:] # omit the timestamp column; keep time encodings.
 
-    Xs = dataframe[:, -5:]
-    Xc = dataframe[:, :-5]
+    dataframe = np.hstack([dataframe[:-1,:],dataframe[1:,-5:]])
 
-    dataset = tf.data.Dataset.from_tensor_slices(((Xs[:-1], Xc[:-1]), Xs[1:]))
-    dataset = dataset.window(24, shift=1, drop_remainder=True)
+    is_finite_bool = np.isfinite(dataframe)
+    is_finite_float = is_finite_bool.astype(np.float32)
+    finite_dataframe = np.where(is_finite_bool, dataframe, 0.0)
 
-    # Not sure this is properly turning single rows into windows
-    # could also tensorize it, work with the tensor, then make it a dataset
-    dataset = dataset.flat_map(flat_map_helper)
+    Xs = finite_dataframe[:,-10:-5]
+    Xc = finite_dataframe[:, :-10]
+    Y  = dataframe[:, -5:]
+    
+    Xs_mask = is_finite_float[:,-10:-5]
+    Xc_mask = is_finite_float[:,:-10]
+
+    Xs_and_mask = np.hstack([Xs,Xs_mask])
+    Xc_and_mask = np.hstack([Xc,Xc_mask])
+    dataframe = np.hstack([Xc_and_mask, Xs_and_mask, Y])
+
+    dataframe = np.squeeze(np.lib.stride_tricks.sliding_window_view(dataframe, (T, dataframe.shape[-1])))
+    Xs = dataframe[:,:,-15:-5]
+    Xc = dataframe[:,:,:-15]
+    Y  = dataframe[:,:,-5:]
+
+    dataset = tf.data.Dataset.from_tensor_slices(((Xs,Xc),Y))
+    return dataset
+
 
 def main(args) :
     # === Load dataset ===
 
-    construct_dataset(args)
-
-    ds = tf.data.Dataset.load(args.data)
+    ds = construct_dataset(args, 24)
 
     card = ds.cardinality().numpy()
-    train_sz = int(0.8*card)
+    # train_sz = int(0.8*card)
+    train_sz = 1000
     ds = ds.shuffle(buffer_size=card, seed=0)
     ds_train = ds.take(train_sz).batch(args.batch_size)
     ds_test  = ds.skip(train_sz).batch(args.batch_size)
@@ -72,14 +83,17 @@ def main(args) :
     )
 
     # === Instantiate optimizer and loss ===
-    optimizer_class = {
-        'adam'      : keras.optimizers.Adam,
-        'rmsprop'   : keras.optimizers.RMSprop,
-        'sgd'       : keras.optimizers.SGD
-    }[args.optimizer]
+    # optimizer_class = {
+    #     'adam'      : keras.optimizers.Adam,
+    #     'rmsprop'   : keras.optimizers.RMSprop,
+    #     'sgd'       : keras.optimizers.SGD
+    # }[args.optimizer]
 
-    optimizer = optimizer_class(
-        learning_rate = args.lr
+    # optimizer = optimizer_class(
+    #     learning_rate = args.lr
+    # )
+    optimizer = keras.optimizers.Adam(
+        clipnorm=10.0
     )
 
     # === Compile model ===
@@ -93,11 +107,23 @@ def main(args) :
         run_eagerly=True
     )
 
-    debug_x, debug_y = next(iter(ds_train))
-    pred = model.predict(
-        debug_x, 1
-    )
-    ls = model.loss(debug_y, pred)
+    batch = next(iter(ds_train.take(1)))
+    (Xs, Xc), Y = batch
+
+    with tf.GradientTape() as tape:
+        y_pred = model((Xs, Xc), training=True)
+        loss = model.compute_loss(y=Y, y_pred=y_pred)
+
+    variables = model.trainable_variables
+    grads = tape.gradient(loss, variables)
+
+    for var, grad in zip(variables, grads):
+        if grad is None or tf.reduce_any(tf.math.is_nan(grad)):
+            print("[DISCONNECTED]", var.name)
+        else:
+            print("[OK]          ", var.name, grad.shape)
+    for var, grad in zip(variables, grads):
+        tf.print(var, grad, sep='\n')
 
     # # === Train model ===
     # model.fit(

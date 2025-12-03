@@ -7,7 +7,6 @@ import os
 # from rpy2.robjects.packages import importr
 # from rpy2.robjects import pandas2ri
 
-"""
 PARAM_DICT = {
     "44201": "o3",
     "68105": "avg_temp",
@@ -132,34 +131,33 @@ ds = ds[[
 ]]
 
 ds.to_pickle('./data/preprocessed/aqmet_pd.pkl')
-"""
 
-ds = pd.read_pickle('./aqmet_pd.pkl')
-ds_np = ds.to_numpy(dtype=np.float32)[:,1:]
-del ds
+# ds = pd.read_pickle('./aqmet_pd.pkl')
+# ds_np = ds.to_numpy(dtype=np.float32)[:,1:]
+# del ds
 
-def construct_contextualized_ds(x:np.ndarray, window_len:int =24) -> tf.data.Dataset:
+# def construct_contextualized_ds(x:np.ndarray, window_len:int =24) -> tf.data.Dataset:
     
-    is_finite_bool = np.isfinite(x)
-    is_finite_fl = is_finite_bool.astype(np.float32)
-    finite_x = np.where(is_finite_bool, x, 0.0)
+#     is_finite_bool = np.isfinite(x)
+#     is_finite_fl = is_finite_bool.astype(np.float32)
+#     finite_x = np.where(is_finite_bool, x, 0.0)
 
-    Xs=[]; Xc=[]; Y=[]
-    for i in range(len(finite_x)-window_len):
-        Xs_window   = finite_x[i:i+window_len, -5:]
-        Xc_window   = finite_x[i:i+window_len, :-5]
-        target      = x [i+1 : i+window_len+1, -5:]
+#     Xs=[]; Xc=[]; Y=[]
+#     for i in range(len(finite_x)-window_len):
+#         Xs_window   = finite_x[i:i+window_len, -5:]
+#         Xc_window   = finite_x[i:i+window_len, :-5]
+#         target      = x [i+1 : i+window_len+1, -5:]
 
-        Xs_mask = is_finite_fl[i:i+window_len, -5:]
-        Xc_mask = is_finite_fl[i:i+window_len, :-5]
+#         Xs_mask = is_finite_fl[i:i+window_len, -5:]
+#         Xc_mask = is_finite_fl[i:i+window_len, :-5]
 
-        Xs_cat = np.concatenate([Xs_window, Xs_mask], axis=-1)
-        Xc_cat = np.concatenate([Xc_window, Xc_mask], axis=-1)
+#         Xs_cat = np.concatenate([Xs_window, Xs_mask], axis=-1)
+#         Xc_cat = np.concatenate([Xc_window, Xc_mask], axis=-1)
 
-        Xs.append(Xs_cat)
-        Xc.append(Xc_cat)
-        Y.append(target)
-    return tf.data.Dataset.from_tensor_slices(((Xs, Xc), Y))
+#         Xs.append(Xs_cat)
+#         Xc.append(Xc_cat)
+#         Y.append(target)
+#     return tf.data.Dataset.from_tensor_slices(((Xs, Xc), Y))
 
-ds = construct_contextualized_ds(ds_np)
-ds.save('./data/datasets/myron_tfg_2')
+# ds = construct_contextualized_ds(ds_np)
+# ds.save('./data/datasets/myron_tfg_2')
