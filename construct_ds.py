@@ -138,7 +138,7 @@ ds = pd.read_pickle('./data/preprocessed/aqmet_pd.pkl')
 ds_np = ds.to_numpy(dtype=np.float32)[:,1:]
 del ds
 
-def construct_contextualized_ds(x:np.ndarray, window_len:int =20) -> tf.data.Dataset:
+def construct_contextualized_ds(x:np.ndarray, window_len:int =24) -> tf.data.Dataset:
     
     is_finite_bool = np.isfinite(x)
     is_finite_fl = is_finite_bool.astype(np.float32)
@@ -146,9 +146,9 @@ def construct_contextualized_ds(x:np.ndarray, window_len:int =20) -> tf.data.Dat
 
     Xs=[]; Xc=[]; Y=[]
     for i in range(len(finite_x)-window_len):
-        Xs_window  = finite_x[i:i+window_len, -5:]
-        Xc_window = finite_x[i:i+window_len, :-5]
-        target = x[i+window_len, -5:]
+        Xs_window   = finite_x[i:i+window_len, -5:]
+        Xc_window   = finite_x[i:i+window_len, :-5]
+        target      = x [i+1 : i+window_len+1, -5:]
 
         Xs_mask = is_finite_fl[i:i+window_len, -5:]
         Xc_mask = is_finite_fl[i:i+window_len, :-5]

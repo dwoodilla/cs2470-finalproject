@@ -3,6 +3,7 @@ import tensorflow as tf
 import keras
 import numpy as np
 import models
+import masked_metrics
 
 def parse_args(args=None):
     """
@@ -20,11 +21,14 @@ def parse_args(args=None):
     parser.add_argument('--optimizer',      type=str,   default='adam', choices=['adam', 'rmsprop', 'sgd'], help='Model\'s optimizer')
     parser.add_argument('--batch_size',     type=int,   default=100,    help='Model\'s batch size.')
     parser.add_argument('--hidden_size',    type=int,   default=256,    help='Hidden size used to instantiate the model.')
-    parser.add_argument('--window_size',    type=int,   default=20,     help='Length of time sequence window.')
+    parser.add_argument('--window_size',    type=int,   default=6,     help='Length of time sequence window.')
     parser.add_argument('--chkpt_path',     default='',                 help='Where the model checkpoint is.')
     parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
 
-#     return parser.parse_args()
+    return parser.parse_args()
+
+def construct_dataset(args):
+    
 
 def main(args) :
     # === Load dataset ===
@@ -42,7 +46,7 @@ def main(args) :
     }[args.arch]
 
     model = model_class(
-        time_window = args.window_size,
+        time_convolutional_window = args.window_size,
         hidden_dim  = args.hidden_size
     )
 
@@ -60,24 +64,30 @@ def main(args) :
     # === Compile model ===
     model.compile(
         optimizer = optimizer,
-        loss = metrics.MaskedMSE(),
-        metrics = [
-            metrics.MaskedMAE(),
-            metrics.MaskedRMSE()
-        ],
+        loss = masked_metrics.MaskedMSE(),
+        # metrics = [
+        #     masked_metrics.MaskedMAE(),
+        #     masked_metrics.MaskedRMSE()
+        # ],
         run_eagerly=True
     )
 
-    # === Train model ===
-    model.fit(
-        x = ds_train,
-        epochs = args.epochs
+    debug_x, debug_y = next(iter(ds_train))
+    pred = model.predict(
+        debug_x, 1
     )
-    eval = model.evaluate(
-        x = ds_test
-    )
-    print(eval)
+    ls = model.loss(debug_y, pred)
+
+    # # === Train model ===
+    # model.fit(
+    #     x = ds_train,
+    #     epochs = args.epochs
+    # )
+    # eval = model.evaluate(
+    #     x = ds_test
+    # )
+    # print(eval)
 
 if __name__=="__main__":
-    # main(parse_args())
-    main()
+    main(parse_args())
+    # main()
