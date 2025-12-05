@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import tensorflow as tf
 import keras
 import numpy as np
@@ -62,6 +63,14 @@ def construct_dataset(args, T=24, horizon=1):
 
 def main(args) :
 
+    logdir = f'./logs/fit/{datetime.now().strftime("%Y%m%d-%H%M%S")}'
+    tbd_callback = keras.callbacks.TensorBoard(
+        log_dir=logdir, 
+        histogram_freq=1,
+        # update_freq='100',
+        write_images=True
+    )
+
     # tf.debugging.experimental.enable_dump_debug_info(
     #     "/Users/mikewoodilla/csci2470/fp/tmp/tfdbg2_logdir",
     #     tensor_debug_mode='FULL_HEALTH',
@@ -112,12 +121,13 @@ def main(args) :
     tsf_model.fit(
         x = train_ds,
         validation_data=val_ds,
-        epochs = args.epochs
+        epochs = args.epochs,
+        callbacks=tbd_callback
     )
     tsf_model.evaluate(
         x = test_ds
     )
-    tsf_model.save('./tsf_model.keras')
+    tsf_model.save(f'./models/tsf_model_{datetime.now().strftime("%Y%m%d-%H%M%S")}.keras')
 
 if __name__=="__main__":
     main(parse_args())
