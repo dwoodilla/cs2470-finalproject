@@ -30,11 +30,11 @@ def parse_args(args=None):
 
     return parser.parse_args()
 
-def construct_dataset(args, T):
+def construct_dataset(args, T=24, horizon=1):
 
     dataframe = read_pickle(args.dataframe).to_numpy(dtype=np.float32)[:,1:] # omit the timestamp column; keep time encodings.
 
-    dataframe = np.hstack([dataframe[:-1,:],dataframe[1:,-5:]])
+    dataframe = np.hstack([dataframe[:-horizon,:],dataframe[horizon:,-5:]])
 
     is_finite_bool = np.isfinite(dataframe)
     is_finite_float = is_finite_bool.astype(np.float32)
@@ -62,91 +62,59 @@ def construct_dataset(args, T):
 
 def main(args) :
 
-    tf.debugging.experimental.enable_dump_debug_info(
-        "C:/Users/dwoodill/csci2470/fp/tmp/tfdbg2_logdir",
-        tensor_debug_mode="FULL_HEALTH",
-        circular_buffer_size=-1
-    )
-
-    tf.debugging.enable_check_numerics()
-
     # === Load dataset ===
-
-    ds = construct_dataset(args, 24)
+    ds = construct_dataset(args, T=24, horizon=24)
 
     card = ds.cardinality().numpy()
-    # train_sz = int(0.8*card)
-    ds = ds.shuffle(buffer_size=card, seed=0)
-    ds_train = ds.take(3).batch(1)
-    ds_test = ds.take(1).batch(1)
+    train_sz = int(0.7*card)
+    val_sz   = int(0.15*card)
+    test_sz  = card - (train_sz + val_sz)
+    train_ds = ds.take(3).batch(1)
+    val_ds   = ds.take(3).batch(1)
+    test_ds  = ds.take(1).batch(1)
+    
     # ds_train = ds.take(train_sz).batch(args.batch_size)
-    # ds_test  = ds.skip(train_sz).batch(args.batch_size)
+    # ds_test  = ds.take(test_sz).batch(args.batch_size)
+    # ds_val   = ds.take(val_sz).batch(1)
 
     # === Instantiate model ===
-    model_class = {
-        "lstnet" : models.LSTNet
-    }[args.arch]
-
-    model = model_class(
+    ts_forecast_model = models.LSTNet_seq2tok(
         time_convolutional_window = args.window_size,
         hidden_dim  = args.hidden_size
     )
 
     # === Instantiate optimizer and loss ===
-    # optimizer_class = {
-    #     'adam'      : keras.optimizers.Adam,
-    #     'rmsprop'   : keras.optimizers.RMSprop,
-    #     'sgd'       : keras.optimizers.SGD
-    # }[args.optimizer]
-
-    # optimizer = optimizer_class(
-    #     learning_rate = args.lr
-    # )
-    optimizer = keras.optimizers.Adam(
-        clipnorm=10.0
-    )
+    optimizer = {
+        'adam'      : keras.optimizers.Adam,
+        'rmsprop'   : keras.optimizers.RMSprop,
+        'sgd'       : keras.optimizers.SGD
+    } [args.optimizer] (learning_rate = args.lr)
 
     # === Compile model ===
-    model.compile(
+    ts_forecast_model.compile(
         optimizer = optimizer,
-        loss = masked_metrics.MaskedMSE(),
-        # metrics = [
-        #     masked_metrics.MaskedMAE(),
-        #     masked_metrics.MaskedRMSE()
-        # ],
+        loss = masked_metrics.MaskedMSE_seq2seq(),
+        metrics = [ masked_metrics.MaskedMAE() ],
         run_eagerly=True
     )
 
-    # batch = next(iter(ds_train.take(1)))
-    # (Xs, Xc), Y = batch # type: ignore
+    datum = next(iter(train_ds))
+    pred = ts_forecast_model.predict(datum)
 
-    # with tf.GradientTape() as tape:
-    #     y_pred = model((Xs, Xc), training=True)
-    #     loss = model.compute_loss(y=Y, y_pred=y_pred)
+    # # === Train model ===
+    # ts_forecast_model.fit(
+    #     x = ds_train,
+    #     validation_data=ds_val,
+    #     epochs = args.epochs
+    # )
+    # ts_forecast_model.evaluate(
+    #     x = ds_test
+    # )
 
-    # variables = model.trainable_variables
-    # grads = tape.gradient(loss, variables)
 
-    # for var, grad in zip(variables, grads):
-    #     if grad is None: #or tf.reduce_any(tf.math.is_nan(grad)):
-    #         print("[DISCONNECTED]", var.name)
-    #     elif tf.reduce_any(tf.math.is_nan(grad)):
-    #         print("[HAS NANS]", var.name)
-    #     else:
-    #         print("[OK] ", var.name, grad.shape)
-    # for var, grad in zip(variables, grads):
-    #     tf.print(var, grad, sep='\n')
+    
 
-    # === Train model ===
-    model.fit(
-        x = ds_train,
-        epochs = args.epochs
-    )
-    eval = model.evaluate(
-        x = ds_test
-    )
-    print(eval)
+
 
 if __name__=="__main__":
     main(parse_args())
-    # main()
