@@ -1,13 +1,15 @@
 import tensorflow as tf
 import keras
 
-class MaskedMSE_seq2seq(keras.losses.Loss):
-    def __init__(self, reduction=keras.losses.Reduction.AUTO, name='masked_mse'):
+class MaskedMSE(keras.losses.Loss):
+    def __init__(self, seq2seq:bool=True, reduction=keras.losses.Reduction.AUTO, name='masked_mse'):
         super().__init__(reduction=reduction, name=name)
+        self.seq2seq = seq2seq
     
     def call(self, y_true, y_pred):
         mask = tf.stop_gradient(tf.math.is_finite(y_true))
         y_true_masked = tf.stop_gradient(tf.where(mask, y_true, 0.0))
+        if not self.seq2seq: y_true_masked = y_true_masked[:,-1,:]
 
         se = tf.multiply(tf.square(tf.subtract(y_pred, y_true_masked)), tf.cast(mask, tf.float32)) # [bn, T]
 
@@ -20,12 +22,14 @@ class MaskedMSE_seq2seq(keras.losses.Loss):
         return se_mean_b_t
 
 class MaskedMAE(keras.losses.Loss):
-    def __init__(self, reduction=keras.losses.Reduction.AUTO, name='masked_mae'):
+    def __init__(self, seq2seq:bool=True, reduction=keras.losses.Reduction.AUTO, name='masked_mae'):
         super().__init__(reduction=reduction, name=name)
+        self.seq2seq = seq2seq
     
     def call(self, y_true, y_pred):
         mask = tf.stop_gradient(tf.math.is_finite(y_true))
         y_true_masked = tf.stop_gradient(tf.where(mask, y_true, 0.0))
+        if not self.seq2seq: y_true_masked = y_true_masked[:,-1,:]
 
         ae = tf.multiply(tf.abs(tf.subtract(y_pred, y_true_masked)), tf.cast(mask, tf.float32)) # [bn, T]
 

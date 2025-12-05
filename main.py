@@ -78,9 +78,10 @@ def main(args) :
     # ds_val   = ds.take(val_sz).batch(1)
 
     # === Instantiate model ===
-    ts_forecast_model = models.LSTNet_seq2tok(
+    tsf_model = models.LSTNet(
         time_convolutional_window = args.window_size,
-        hidden_dim  = args.hidden_size
+        hidden_dim  = args.hidden_size,
+        seq2seq=False
     )
 
     # === Instantiate optimizer and loss ===
@@ -91,15 +92,16 @@ def main(args) :
     } [args.optimizer] (learning_rate = args.lr)
 
     # === Compile model ===
-    ts_forecast_model.compile(
+    tsf_model.compile(
         optimizer = optimizer,
-        loss = masked_metrics.MaskedMSE_seq2seq(),
+        loss = masked_metrics.MaskedMSE(seq2seq=False),
         metrics = [ masked_metrics.MaskedMAE() ],
         run_eagerly=True
     )
 
-    datum = next(iter(train_ds))
-    pred = ts_forecast_model.predict(datum)
+    (Xs,Xc),Y = next(iter(train_ds))
+    pred = tsf_model.predict((Xs,Xc))
+    loss = tsf_model.loss(Y, pred)
 
     # # === Train model ===
     # ts_forecast_model.fit(
