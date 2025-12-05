@@ -3,6 +3,7 @@ data/
 downloaded/
 preprocessed/
 scrap/
+tmp/tfdbg2_logdir/
 
 
 # Byte-compiled / optimized / DLL files

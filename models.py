@@ -58,34 +58,34 @@ class LSTNet(keras.Model):
         y = tf.expand_dims(y, 1) # y.shape = [bn, 1, T+omega-1 =25, d =10]
         y = tf.transpose(y, perm=[0,2,3,1]) # y.shape = [bn, T+omega-1, d, 1]
         y = self.conv(y) # y.shape = [bn, filters, T=20, 1] 
-        tf.debugging.assert_all_finite(y, 'self.conf returned not-finite tensor')
+        # tf.debugging.assert_all_finite(y, 'self.conf returned not-finite tensor')
         y = tf.squeeze(y, -2) 
         # y = tf.transpose(y, perm=[0,2,1]) # y.shape = [bn, T=20, filters]
         y = self.gru(y) # y.shape = [bn, T=20, h2=256]
-        tf.debugging.assert_all_finite(y, 'self.gru returned not-finite tensor')
+        # tf.debugging.assert_all_finite(y, 'self.gru returned not-finite tensor')
 
         y = self.latent_projection(y) # y.shape = [bn, T=20, d=5]
 
         y = self.auto_regressor(Xs) + y # y.shape = bn, T=20, d=5]
 
-        tf.debugging.assert_all_finite(y, 'model prediction not finite')
+        # tf.debugging.assert_all_finite(y, 'model prediction not finite')
         return y
 
-    def train_step(self, data):
-        x, y = data
+    # def train_step(self, data):
+    #     x, y = data
 
-        with tf.GradientTape() as tape:
-            y_pred = self(x, training=True)  # Forward pass
-            loss = self.compute_loss(y=y, y_pred=y_pred)
+    #     with tf.GradientTape() as tape:
+    #         y_pred = self(x, training=True)  # Forward pass
+    #         loss = self.compute_loss(y=y, y_pred=y_pred)
 
-        trainable_vars = self.trainable_variables
-        gradients = tape.gradient(loss, trainable_vars)
-        self.optimizer.apply_gradients(zip(gradients, trainable_vars)) # graidents are nan
+    #     trainable_vars = self.trainable_variables
+    #     gradients = tape.gradient(loss, trainable_vars)
+    #     self.optimizer.apply_gradients(zip(gradients, trainable_vars)) # graidents are nan
 
-        for metric in self.metrics:
-            if metric.name == "loss":
-                metric.update_state(loss)
-            else:
-                metric.update_state(y, y_pred)
+    #     for metric in self.metrics:
+    #         if metric.name == "loss":
+    #             metric.update_state(loss)
+    #         else:
+    #             metric.update_state(y, y_pred)
 
-        return {m.name: m.result() for m in self.metrics}
+    #     return {m.name: m.result() for m in self.metrics}

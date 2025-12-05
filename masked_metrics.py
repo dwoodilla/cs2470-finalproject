@@ -9,10 +9,20 @@ class MaskedMSE(keras.losses.Loss):
         super().__init__(reduction=reduction, name=name)
     
     def call(self, y_true, y_pred):
-        sq_err = tf.square(y_pred - y_true)
-        mask = tf.where(tf.math.is_finite(y_true), 1.0, 0.0)
-        masked_se = sq_err * mask
+        mask = tf.math.is_finite(y_true)
+        y_true_masked = tf.where(mask, y_true, 0.0)
+
+        se = tf.multiply(tf.square(tf.subtract(y_pred, y_true_masked)), tf.cast(mask, tf.float32)) # [bn, T]
+
+        se_sum_d = tf.reduce_sum(se, axis=-1)
+        valid_dims_per_obs = tf.reduce_sum(tf.cast(mask, tf.float32), -1) 
         
+        # DEBUG: causing nans to propogate
+        se_mean_d = tf.where(valid_dims_per_obs > 0.0, tf.divide(se_sum_d, valid_dims_per_obs), 0.0) 
+        # tf.debugging.assert_all_finite(se_mean_d, 'se_mean_d not all finite')
+
+        se_mean_b_t = tf.reduce_mean(se_mean_d) # mean across bn and T dims.
+        return se_mean_b_t
 
 # class MaskedMSE(keras.losses.Loss):
 #     def __init__(self, reduction=keras.losses.Reduction.AUTO, name='masked_mse'):

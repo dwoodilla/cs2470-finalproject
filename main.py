@@ -61,16 +61,26 @@ def construct_dataset(args, T):
 
 
 def main(args) :
+
+    tf.debugging.experimental.enable_dump_debug_info(
+        "C:/Users/dwoodill/csci2470/fp/tmp/tfdbg2_logdir",
+        tensor_debug_mode="FULL_HEALTH",
+        circular_buffer_size=-1
+    )
+
+    tf.debugging.enable_check_numerics()
+
     # === Load dataset ===
 
     ds = construct_dataset(args, 24)
 
     card = ds.cardinality().numpy()
     # train_sz = int(0.8*card)
-    train_sz = 1000
     ds = ds.shuffle(buffer_size=card, seed=0)
-    ds_train = ds.take(train_sz).batch(args.batch_size)
-    ds_test  = ds.skip(train_sz).batch(args.batch_size)
+    ds_train = ds.take(3).batch(1)
+    ds_test = ds.take(1).batch(1)
+    # ds_train = ds.take(train_sz).batch(args.batch_size)
+    # ds_test  = ds.skip(train_sz).batch(args.batch_size)
 
     # === Instantiate model ===
     model_class = {
@@ -107,33 +117,35 @@ def main(args) :
         run_eagerly=True
     )
 
-    batch = next(iter(ds_train.take(1)))
-    (Xs, Xc), Y = batch
+    # batch = next(iter(ds_train.take(1)))
+    # (Xs, Xc), Y = batch # type: ignore
 
-    with tf.GradientTape() as tape:
-        y_pred = model((Xs, Xc), training=True)
-        loss = model.compute_loss(y=Y, y_pred=y_pred)
+    # with tf.GradientTape() as tape:
+    #     y_pred = model((Xs, Xc), training=True)
+    #     loss = model.compute_loss(y=Y, y_pred=y_pred)
 
-    variables = model.trainable_variables
-    grads = tape.gradient(loss, variables)
+    # variables = model.trainable_variables
+    # grads = tape.gradient(loss, variables)
 
-    for var, grad in zip(variables, grads):
-        if grad is None or tf.reduce_any(tf.math.is_nan(grad)):
-            print("[DISCONNECTED]", var.name)
-        else:
-            print("[OK]          ", var.name, grad.shape)
-    for var, grad in zip(variables, grads):
-        tf.print(var, grad, sep='\n')
+    # for var, grad in zip(variables, grads):
+    #     if grad is None: #or tf.reduce_any(tf.math.is_nan(grad)):
+    #         print("[DISCONNECTED]", var.name)
+    #     elif tf.reduce_any(tf.math.is_nan(grad)):
+    #         print("[HAS NANS]", var.name)
+    #     else:
+    #         print("[OK] ", var.name, grad.shape)
+    # for var, grad in zip(variables, grads):
+    #     tf.print(var, grad, sep='\n')
 
-    # # === Train model ===
-    # model.fit(
-    #     x = ds_train,
-    #     epochs = args.epochs
-    # )
-    # eval = model.evaluate(
-    #     x = ds_test
-    # )
-    # print(eval)
+    # === Train model ===
+    model.fit(
+        x = ds_train,
+        epochs = args.epochs
+    )
+    eval = model.evaluate(
+        x = ds_test
+    )
+    print(eval)
 
 if __name__=="__main__":
     main(parse_args())
