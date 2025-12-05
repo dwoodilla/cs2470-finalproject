@@ -14,26 +14,17 @@ def parse_args(args=None):
     Credit goes to HW4 authors.
     """
     parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--arch',           required=True,              choices=['lstnet', 'custom_forecaster', 'calibrator'],
-        help='Type of model to train. LSTNet and custom_forecaster perform AQS time series forecasting for use in linear regression calibration, \
-            while calibrator performs a deep calibration of low-cost sensors using predicted AQS time series.')
-    parser.add_argument('--task',           required=True,              choices=['train', 'test', 'both'],  help='Task to run')
-    parser.add_argument('--dataframe',      default='aqmet_pd.pkl',     help = 'File path to pandas dataframe pickle containing combined aq and met data.')
-    # parser.add_argument('--data',           required=True,              help='File path to the assignment data file.')
-    parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
-    parser.add_argument('--lr',             type=float, default=1e-3,   help='Model\'s learning rate')
-    parser.add_argument('--optimizer',      type=str,   default='adam', choices=['adam', 'rmsprop', 'sgd'], help='Model\'s optimizer')
-    parser.add_argument('--batch_size',     type=int,   default=100,    help='Model\'s batch size.')
     parser.add_argument('--hidden_size',    type=int,   default=256,    help='Hidden size used to instantiate the model.')
     parser.add_argument('--window_size',    type=int,   default=6,      help='Length of time sequence window.')
-    parser.add_argument('--chkpt_path',     default='',                 help='Where the model checkpoint is.')
-    parser.add_argument('--check_valid',    default=True,               action="store_true",  help='if training, also print validation after each epoch')
+    parser.add_argument('--seq2seq',        type=bool,  default=True,   help='If false, forecaster treats first t-1 tokens as warmup.')
+    parser.add_argument('--batch_size',     type=int,   default=100)
+    parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
 
     return parser.parse_args()
 
 def construct_dataset(args, T=24, horizon=1):
 
-    dataframe = read_pickle(args.dataframe).to_numpy(dtype=np.float32)[:,1:] # omit the timestamp column; keep time encodings.
+    dataframe = read_pickle('aqmet_pd.pkl').to_numpy(dtype=np.float32)[:,1:] # omit the timestamp column; keep time encodings.
 
     dataframe = np.hstack([dataframe[:-horizon,:],dataframe[horizon:,-5:]])
 
@@ -60,7 +51,6 @@ def construct_dataset(args, T=24, horizon=1):
     dataset = tf.data.Dataset.from_tensor_slices(((Xs,Xc),Y))
     return dataset
 
-
 def main(args) :
 
     logdir = f'./logs/fit/{datetime.now().strftime("%Y%m%d-%H%M%S")}'
@@ -78,15 +68,14 @@ def main(args) :
     # )
 
     # === Load dataset ===
-    ds = construct_dataset(args, T=24, horizon=24)
+    if args.seq2seq: horizon=1
+    else: horizon=24
+    ds = construct_dataset(args, T=24, horizon=horizon)
 
     card = ds.cardinality().numpy()
     train_sz = int(0.7*card)
     val_sz   = int(0.15*card)
     test_sz  = card - (train_sz + val_sz)
-    # train_ds = ds.take(3).batch(1)
-    # val_ds   = ds.take(3).batch(1)
-    # test_ds  = ds.take(1).batch(1)
     
     train_ds = ds.take(train_sz).batch(args.batch_size)
     test_ds  = ds.take(test_sz).batch(args.batch_size)
@@ -95,39 +84,35 @@ def main(args) :
     # === Instantiate model ===
     tsf_model = models.LSTNet(
         time_convolutional_window = args.window_size,
-        hidden_dim  = args.hidden_size,
+        hidden_dim = args.hidden_size,
+        seq2seq = args.seq2seq
     )
 
     # === Instantiate optimizer and loss ===
-    optimizer = {
-        'adam'      : keras.optimizers.Adam,
-        'rmsprop'   : keras.optimizers.RMSprop,
-        'sgd'       : keras.optimizers.SGD
-    } [args.optimizer] (learning_rate = args.lr, clipnorm=10)
+    optimizer = keras.optimizers.Adam()
 
     # === Compile model ===
     tsf_model.compile(
         optimizer = optimizer,
-        loss = masked_metrics.MaskedMSE(),
-        metrics = [ masked_metrics.MaskedMAE() ],
-        # run_eagerly=True
+        loss = masked_metrics.MaskedMSE(seq2seq=args.seq2seq),
+        metrics = [
+            masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
+            masked_metrics.SequenceCompleteness(args.seq2seq)
+        ],
+        run_eagerly=True
     )
-
-    # (Xs,Xc),Y = next(iter(train_ds))
-    # pred = tsf_model.predict((Xs,Xc))
-    # loss = tsf_model.loss(Y, pred)
 
     # === Train model ===
     tsf_model.fit(
         x = train_ds,
         validation_data=val_ds,
         epochs = args.epochs,
-        callbacks=tbd_callback
+        callbacks=[tbd_callback]
     )
     tsf_model.evaluate(
         x = test_ds
     )
-    tsf_model.save(f'./models/tsf_model_{datetime.now().strftime("%Y%m%d-%H%M%S")}.keras')
+    tsf_model.save(f'./models/tsf_model_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_s2s={args.seq2seq}.keras')
 
 if __name__=="__main__":
     main(parse_args())

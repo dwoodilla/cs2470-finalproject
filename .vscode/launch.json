@@ -1,3 +1,27 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:863036eeaec33fc93c1d4c6783eae8274bda41e93c817b5e85f014db263c26f6
-size 970
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run main.py with args",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "./main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "--epochs","3",
+                "--seq2seq","False"
+            ]
+            // "justMyCode": false
+        },
+        {
+            "name": "Python Debugger: Current File",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        }
+    ]
+}

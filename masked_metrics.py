@@ -2,7 +2,7 @@ import tensorflow as tf
 import keras
 
 class MaskedMSE(keras.losses.Loss):
-    def __init__(self, seq2seq:bool=True, reduction=keras.losses.Reduction.AUTO, name='masked_mse'):
+    def __init__(self, seq2seq:bool, reduction=keras.losses.Reduction.AUTO, name='masked_mse'):
         super().__init__(reduction=reduction, name=name)
         self.seq2seq = seq2seq
     
@@ -25,7 +25,7 @@ class MaskedMSE(keras.losses.Loss):
         return se_mean_b_t
 
 class MaskedMAE(keras.losses.Loss):
-    def __init__(self, seq2seq:bool=True, reduction=keras.losses.Reduction.AUTO, name='masked_mae'):
+    def __init__(self, seq2seq:bool, reduction=keras.losses.Reduction.AUTO, name='masked_mae'):
         super().__init__(reduction=reduction, name=name)
         self.seq2seq = seq2seq
     
@@ -45,3 +45,13 @@ class MaskedMAE(keras.losses.Loss):
 
         ae_mean_b_t = tf.reduce_mean(ae_mean_d) # mean across bn and T dims.
         return ae_mean_b_t
+    
+class SequenceCompleteness(keras.losses.Loss):
+    def __init__(self, seq2seq:bool, name='seq_completeness'):
+        super().__init__(name=name)
+        self.seq2seq = seq2seq
+    
+    def call(self, y_true, y_pred):
+
+        is_finite_float = tf.stop_gradient(tf.cast(tf.math.is_finite(y_true), dtype=tf.float32))
+        return tf.reduce_mean(is_finite_float)
