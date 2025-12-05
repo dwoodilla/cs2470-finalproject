@@ -83,7 +83,7 @@ def main(args) :
 
     # === Instantiate model ===
     tsf_model = models.LSTNet(
-        time_convolutional_window = args.window_size,
+        omega = args.conv_height,
         hidden_dim = args.hidden_size,
         seq2seq = args.seq2seq
     )
