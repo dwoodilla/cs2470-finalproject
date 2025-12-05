@@ -40,10 +40,3 @@ class MaskedMAE(keras.losses.Loss):
 
         ae_mean_b_t = tf.reduce_mean(ae_mean_d) # mean across bn and T dims.
         return ae_mean_b_t
-
-# class MaskedR2CoD(keras.losses.Loss):
-#     def __init__(self, reduction=keras.losses.Reduction.AUTO, name='masked_R2CoD'):
-#         super().__init__(reduction=reduction, name=name)
-
-#     def call(self, y_true, y_pred):
-

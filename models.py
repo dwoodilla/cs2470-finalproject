@@ -47,21 +47,21 @@ class LSTNet(keras.Model):
     
     def call(self, inputs:tf.Tensor, training=None, mask=None) -> tf.Tensor:
 
-        Xs, Xc = inputs # Xs.shape = [bn,T=20,d=10]
-        y = self.Xs_pad(Xs) # y.shape = [bn, T+omega-1=25, d=10 ]
+        Xs, Xc = inputs 
+        y = self.Xs_pad(Xs) 
 
-        y = tf.expand_dims(y, 1) # y.shape = [bn, 1, T+omega-1 =25, d =10]
-        y = tf.transpose(y, perm=[0,2,3,1]) # y.shape = [bn, T+omega-1, d, 1]
-        y = self.conv(y) # y.shape = [bn, filters, T=20, 1] 
+        y = tf.expand_dims(y, 1) 
+        y = tf.transpose(y, perm=[0,2,3,1]) 
+        y = self.conv(y) 
         y = tf.squeeze(y, -2) 
-        y = self.gru(y) # y.shape = [bn, T=20, h2=256]
+        y = self.gru(y) 
 
-        y = self.latent_projection(y) # y.shape = [bn, T=20, d=5]
+        y = self.latent_projection(y) 
 
         highway_in = Xs
         if not self.seq2seq: highway_in = self.flatten(highway_in)
         highway_out = self.highway_layer(highway_in)
 
-        y = highway_out + y # y.shape = [bn, T=20, d=5]
+        y = highway_out + y 
 
         return y
