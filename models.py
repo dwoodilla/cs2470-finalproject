@@ -2,7 +2,7 @@ import tensorflow as tf
 import keras
 import pandas as pd
 
-@keras.saving.register_keras_serializable()
+@keras.saving.register_keras_serializable(package='cs2470fp', name='lstnet')
 class LSTNet(keras.Model):
     def __init__(self,  
         time_convolutional_window:int,
@@ -31,7 +31,7 @@ class LSTNet(keras.Model):
         )
         self.gru = keras.layers.GRU(
             units=hidden_dim,
-            recurrent_activation='relu',
+            # recurrent_activation='relu',
             return_sequences=self.seq2seq
         )
         self.latent_projection = keras.Sequential([
@@ -50,6 +50,9 @@ class LSTNet(keras.Model):
         Xs, Xc = inputs 
         y = self.Xs_pad(Xs) 
 
+        # tf.debugging.assert_all_finite(Xs, 'Xs not all finite')
+        # tf.debugging.assert_all_finite(Xc, 'Xc not all finite')
+
         y = tf.expand_dims(y, 1) 
         y = tf.transpose(y, perm=[0,2,3,1]) 
         y = self.conv(y) 
@@ -63,5 +66,20 @@ class LSTNet(keras.Model):
         highway_out = self.highway_layer(highway_in)
 
         y = highway_out + y 
-
+        # tf.debugging.assert_all_finite(y, 'pred not all finite')
         return y
+
+    def get_config(self):
+        base_config = super().get_config()
+        config = {
+            "omega":        self.omega,
+            "hidden_dim":   self.hidden_dim,
+            "input_dim":    self.input_dim,
+            "output_dim":   self.output_dim,
+            "seq2seq":      self.seq2seq,
+            "conv":         self.conv,
+            "gru":          self.gru,
+            "latent_projection":  self.latent_projection,
+            "highway_layer":      self.highway_layer
+        }
+        return {**base_config, **config}

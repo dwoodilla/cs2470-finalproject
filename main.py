@@ -62,6 +62,12 @@ def construct_dataset(args, T=24, horizon=1):
 
 def main(args) :
 
+    # tf.debugging.experimental.enable_dump_debug_info(
+    #     "/Users/mikewoodilla/csci2470/fp/tmp/tfdbg2_logdir",
+    #     tensor_debug_mode='FULL_HEALTH',
+    #     circular_buffer_size=-1
+    # )
+
     # === Load dataset ===
     ds = construct_dataset(args, T=24, horizon=24)
 
@@ -69,19 +75,18 @@ def main(args) :
     train_sz = int(0.7*card)
     val_sz   = int(0.15*card)
     test_sz  = card - (train_sz + val_sz)
-    train_ds = ds.take(3).batch(1)
-    val_ds   = ds.take(3).batch(1)
-    test_ds  = ds.take(1).batch(1)
+    # train_ds = ds.take(3).batch(1)
+    # val_ds   = ds.take(3).batch(1)
+    # test_ds  = ds.take(1).batch(1)
     
-    # ds_train = ds.take(train_sz).batch(args.batch_size)
-    # ds_test  = ds.take(test_sz).batch(args.batch_size)
-    # ds_val   = ds.take(val_sz).batch(1)
+    train_ds = ds.take(train_sz).batch(args.batch_size)
+    test_ds  = ds.take(test_sz).batch(args.batch_size)
+    val_ds   = ds.take(val_sz).batch(args.batch_size)
 
     # === Instantiate model ===
     tsf_model = models.LSTNet(
         time_convolutional_window = args.window_size,
         hidden_dim  = args.hidden_size,
-        seq2seq=False
     )
 
     # === Instantiate optimizer and loss ===
@@ -89,34 +94,30 @@ def main(args) :
         'adam'      : keras.optimizers.Adam,
         'rmsprop'   : keras.optimizers.RMSprop,
         'sgd'       : keras.optimizers.SGD
-    } [args.optimizer] (learning_rate = args.lr)
+    } [args.optimizer] (learning_rate = args.lr, clipnorm=10)
 
     # === Compile model ===
     tsf_model.compile(
         optimizer = optimizer,
-        loss = masked_metrics.MaskedMSE(seq2seq=False),
+        loss = masked_metrics.MaskedMSE(),
         metrics = [ masked_metrics.MaskedMAE() ],
-        run_eagerly=True
+        # run_eagerly=True
     )
 
-    (Xs,Xc),Y = next(iter(train_ds))
-    pred = tsf_model.predict((Xs,Xc))
-    loss = tsf_model.loss(Y, pred)
+    # (Xs,Xc),Y = next(iter(train_ds))
+    # pred = tsf_model.predict((Xs,Xc))
+    # loss = tsf_model.loss(Y, pred)
 
-    # # === Train model ===
-    # ts_forecast_model.fit(
-    #     x = ds_train,
-    #     validation_data=ds_val,
-    #     epochs = args.epochs
-    # )
-    # ts_forecast_model.evaluate(
-    #     x = ds_test
-    # )
-
-
-    
-
-
+    # === Train model ===
+    tsf_model.fit(
+        x = train_ds,
+        validation_data=val_ds,
+        epochs = args.epochs
+    )
+    tsf_model.evaluate(
+        x = test_ds
+    )
+    tsf_model.save('./tsf_model.keras')
 
 if __name__=="__main__":
     main(parse_args())

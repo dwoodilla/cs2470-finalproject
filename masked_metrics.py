@@ -9,7 +9,9 @@ class MaskedMSE(keras.losses.Loss):
     def call(self, y_true, y_pred):
         mask = tf.stop_gradient(tf.math.is_finite(y_true))
         y_true_masked = tf.stop_gradient(tf.where(mask, y_true, 0.0))
-        if not self.seq2seq: y_true_masked = y_true_masked[:,-1,:]
+        if not self.seq2seq: 
+            mask = mask[:,-1,:]
+            y_true_masked = y_true_masked[:,-1,:]
 
         se = tf.multiply(tf.square(tf.subtract(y_pred, y_true_masked)), tf.cast(mask, tf.float32)) # [bn, T]
 
@@ -19,6 +21,7 @@ class MaskedMSE(keras.losses.Loss):
         se_mean_d = tf.math.divide_no_nan(se_sum_d, valid_dims_per_obs)
 
         se_mean_b_t = tf.reduce_mean(se_mean_d) # mean across bn and T dims.
+        # tf.debugging.assert_all_finite(se_mean_b_t, 'loss not all finite')
         return se_mean_b_t
 
 class MaskedMAE(keras.losses.Loss):
@@ -29,7 +32,9 @@ class MaskedMAE(keras.losses.Loss):
     def call(self, y_true, y_pred):
         mask = tf.stop_gradient(tf.math.is_finite(y_true))
         y_true_masked = tf.stop_gradient(tf.where(mask, y_true, 0.0))
-        if not self.seq2seq: y_true_masked = y_true_masked[:,-1,:]
+        if not self.seq2seq: 
+            mask = mask[:,-1,:]
+            y_true_masked = y_true_masked[:,-1,:]
 
         ae = tf.multiply(tf.abs(tf.subtract(y_pred, y_true_masked)), tf.cast(mask, tf.float32)) # [bn, T]
 
