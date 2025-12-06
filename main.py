@@ -22,8 +22,9 @@ def parse_args(args=None):
 
     return parser.parse_args()
 
-def construct_dataset(args, T=24, horizon=1):
+def construct_dataset(args, T=24):
 
+    horizon=1
     dataframe = read_pickle('aqmet_pd.pkl').to_numpy(dtype=np.float32)[:,1:] # omit the timestamp column; keep time encodings.
 
     dataframe = np.hstack([dataframe[:-horizon,:],dataframe[horizon:,-5:]])
@@ -48,10 +49,21 @@ def construct_dataset(args, T=24, horizon=1):
     Xc = dataframe[:,:,:-15]
     Y  = dataframe[:,:,-5:]
 
-    dataset = tf.data.Dataset.from_tensor_slices(((Xs,Xc),Y))
-    return dataset
+    ds = tf.data.Dataset.from_tensor_slices(((Xs,Xc),Y))
+    card = ds.cardinality().numpy()
+    train_sz = int(0.7*card)
+    val_sz   = int(0.15*card)
+    test_sz  = card - (train_sz + val_sz)
+    
+    train_ds = ds.take(train_sz).batch(args.batch_size)
+    test_ds  = ds.take(test_sz).batch(args.batch_size)
+    val_ds   = ds.take(val_sz).batch(args.batch_size)
 
-def main(args) :
+    Xs, Xc, Y = map(tf.convert_to_tensor, [Xs,Xc,Y])
+
+    return train_ds, test_ds, val_ds, Xs, Xc, Y
+
+def train_and_save(args, dataset_tuple):
 
     logdir = f'./logs/fit/{datetime.now().strftime("%Y%m%d-%H%M%S")}'
     tbd_callback = keras.callbacks.TensorBoard(
@@ -68,18 +80,8 @@ def main(args) :
     # )
 
     # === Load dataset ===
-    if args.seq2seq: horizon=1
-    else: horizon=24
-    ds = construct_dataset(args, T=24, horizon=horizon)
+    train_ds, test_ds, val_ds = dataset_tuple
 
-    card = ds.cardinality().numpy()
-    train_sz = int(0.7*card)
-    val_sz   = int(0.15*card)
-    test_sz  = card - (train_sz + val_sz)
-    
-    train_ds = ds.take(train_sz).batch(args.batch_size)
-    test_ds  = ds.take(test_sz).batch(args.batch_size)
-    val_ds   = ds.take(val_sz).batch(args.batch_size)
 
     # === Instantiate model ===
     tsf_model = models.LSTNet(
@@ -113,6 +115,35 @@ def main(args) :
         x = test_ds
     )
     tsf_model.save(f'./models/tsf_model_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_s2s={args.seq2seq}.keras')
+
+def main(args):
+    _,_,_, Xs, Xc, Y = construct_dataset(args)
+    # train_and_save(args, dataset_tuple)
+
+    model = models.LSTNet(
+        sequence_dim = 2*5,
+        hidden_dim=256,
+        seq2seq=True,
+        omega=6,
+        context=False,
+        output_dim=5
+    )
+    model.compile(
+        optimizer = keras.optimizers.Adam(),
+        loss = masked_metrics.MaskedMSE(seq2seq=args.seq2seq),
+        metrics = [
+            masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
+            masked_metrics.SequenceCompleteness(args.seq2seq)
+        ],
+        # run_eagerly=True
+    )
+
+    x,y = model.interpolate_fast(
+        Xs, Xc, Y
+    )
+    print(x)
+    print(y)
+    
 
 if __name__=="__main__":
     main(parse_args())
