@@ -86,7 +86,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         hidden_dim = args.hidden_size,
         seq2seq = args.seq2seq,
         omega = args.conv_height,
-        context = False
+        context_dim = Xc.shape[-1]
     )
 
     # === Instantiate optimizer and loss ===
@@ -122,23 +122,9 @@ def main(args):
 
     Y_inter, Y_pred = model.interpolate(Xs, Xc, Y)
 
-    plot_interpolated(Y_inter, Y_pred, ds)
+    plot_interpolated(Y_inter, Y_pred, ds, args)
 
-# def plot_interpolated(Y_interpolated:tf.Tensor, Y_pred:tf.Tensor, pd_dataset:pd.DataFrame):
-
-#     Y_inter_np = tf.make_ndarray(Y_interpolated)
-#     Y_pred_np  = tf.make_ndarray(Y_pred)
-
-#     Y_inter_sliced = Y_inter_np[:,-1,:]
-#     Y_pred_sliced  = Y_pred_np[:,-1,:]
-
-#     # timestamps = timestamps[23:]
-#     timestamps = pd_dataset.index[23:]
-#     Y_inter_pd = pd.DataFrame(Y_inter_sliced, columns=['co', 'no', 'no2', 'o3', 'pm25'])
-#     Y_pred_pd  = pd.DataFrame(Y_pred_sliced,  columns=['co', 'no', 'no2', 'o3', 'pm25'])
-#     pd.concat([pd.Series(timestamps), Y_inter_pd, Y_pred_pd])
-    
-def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, start_offset=23):
+def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, args, start_offset=23):
     """
     Plot interpolated vs predicted time series.
     - Y_interpolated, Y_pred: tf.Tensor or numpy arrays. Expected shape often (N, T, F) or (N, F).
@@ -224,7 +210,7 @@ def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, start_offset=23):
     plt.xlabel('time')
     plt.tight_layout()
     fig.autofmt_xdate()
-    plt.show()
+    plt.savefig(f'ts_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_seq2seq={args.seq2seq}')
     
     
 

@@ -10,7 +10,7 @@ class LSTNet(keras.Model):
         hidden_dim:int,
         seq2seq:bool,
         omega:int,
-        context:bool,
+        context_dim:int,
         output_dim:int=5, 
         **kwargs
     ):
@@ -20,7 +20,7 @@ class LSTNet(keras.Model):
         self.sequence_dim = sequence_dim
         self.output_dim = output_dim
         self.seq2seq = seq2seq
-        self.context = context
+        self.context_dim = context_dim
 
         assert hidden_dim >= sequence_dim # Otherwise convolutions apparently break
 
@@ -29,7 +29,7 @@ class LSTNet(keras.Model):
         )
         self.conv = keras.layers.Conv2D(
             filters = hidden_dim,
-            kernel_size = ((self.omega, self.sequence_dim)),
+            kernel_size = ((self.omega, self.sequence_dim+self.context_dim)),
             data_format = "channels_last" # required for CPU compatability
         )
         self.gru = keras.layers.GRU(
@@ -52,7 +52,7 @@ class LSTNet(keras.Model):
 
         Xs, Xc = inputs 
 
-        if self.context:
+        if self.context_dim > 0:
             # concatenate context and context mask along the feature dimension
             X = tf.concat([Xs, Xc], axis=-1) 
         else: X = Xs
@@ -73,57 +73,6 @@ class LSTNet(keras.Model):
 
         y = highway_out + y 
         return y
-    
-    # def train_step(self, data):
-        
-    #     (Xs, Xc), Y = data # [batched tensors]
-
-    #     BN = tf.shape(Xs)[0] # type: ignore
-
-    #     Xs_obs = Xs[0]
-
-    #     ta_pred_forced = tf.TensorArray(tf.float32, size=BN)
-    #     ta_pred        = tf.TensorArray(tf.float32, size=BN)
-        
-    #     N = tf.constant(0)
-
-    #     def cond(N, Xs_obs, ta_pred_forced, ta_pred):
-    #         return tf.less(N,BN)
-        
-    #     def body(N, Xs_obs, ta_pred_forced, ta_pred):
-    #         tf.print("Progress: ", N, "/", BN, end="\r")
-    #         Xs_obs_3 = tf.expand_dims(Xs_obs, 0)
-    #         Xc_obs_3 = tf.expand_dims(Xc[N], 0)
-    #         Y_obs_3  = tf.expand_dims(Y[N], 0)
-
-    #         Y_pred_3 = self((Xs_obs_3, Xc_obs_3), training=False)
-    #         # Y_pred   = tf.squeeze(Y_pred_3)
-
-    #         finite_mask_3 = tf.stop_gradient(tf.math.is_finite(Y_obs_3))
-    #         Y_obs_3_nansafe = tf.stop_gradient(tf.where(finite_mask_3, Y_obs_3, tf.zeros_like(Y_obs_3)))
-    #         Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred_3)
-
-    #         Xs_next = tf.squeeze(tf.concat([Y_pred_forced_3, tf.cast(finite_mask_3, tf.float32)], axis=-1))
-
-    #         ta_pred_forced = ta_pred_forced.write(N, Y_pred_forced_3)
-    #         ta_pred        = ta_pred.write(N, Y_pred_3)
-
-
-
-    #         return N+1, Xs_next, ta_pred_forced, ta_pred
-        
-    #     _, _, ta_pred_forced, ta_pred = tf.while_loop(
-    #         cond,
-    #         body,
-    #         loop_vars=(N, Xs_obs, ta_pred_forced, ta_pred),
-    #         parallel_iterations=1,
-    #         maximum_iterations=BN
-    #     ) # type: ignore
-
-    #     Y_interpolated = ta_pred_forced.concat()
-    #     Y_predicted    = ta_pred.concat()
-    #     return Y_interpolated, Y_predicted
-
     
     @tf.function
     def interpolate(self, Xs, Xc, Y):
@@ -185,3 +134,6 @@ class LSTNet(keras.Model):
             "highway_layer":      self.highway_layer
         }
         return {**base_config, **config}
+
+    def build(self, input_shape):
+        

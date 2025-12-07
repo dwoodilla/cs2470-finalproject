@@ -2,8 +2,8 @@ import tensorflow as tf
 import keras
 
 class MaskedMSE(keras.losses.Loss):
-    def __init__(self, seq2seq:bool, reduction=keras.losses.Reduction.AUTO, name='masked_mse'):
-        super().__init__(reduction=reduction, name=name)
+    def __init__(self, seq2seq:bool, name='masked_mse'):
+        super().__init__(name=name)
         self.seq2seq = seq2seq
     
     def call(self, y_true, y_pred):
@@ -25,8 +25,8 @@ class MaskedMSE(keras.losses.Loss):
         return se_mean_b_t
 
 class MaskedMAE(keras.losses.Loss):
-    def __init__(self, seq2seq:bool, reduction=keras.losses.Reduction.AUTO, name='masked_mae'):
-        super().__init__(reduction=reduction, name=name)
+    def __init__(self, seq2seq:bool, name='masked_mae'):
+        super().__init__(name=name)
         self.seq2seq = seq2seq
     
     def call(self, y_true, y_pred):
