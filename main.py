@@ -14,10 +14,20 @@ def parse_args(args=None):
     This argument parser is adapted from HW4: Imcap.
     Credit goes to HW4 authors.
     """
+    def str2bool(v):
+        if isinstance(v, bool):
+            return v
+        if v.lower() in ("yes", "true", "t", "1"):
+            return True
+        if v.lower() in ("no", "false", "f", "0"):
+            return False
+        raise argparse.ArgumentTypeError("Boolean value expected.")
+    
     parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--hidden_size',    type=int,   default=256,    help='Hidden size used to instantiate the model.')
     parser.add_argument('--conv_height',    type=int,   default=6,      help='Length of time sequence window.')
-    parser.add_argument('--seq2seq',        type=bool,  default=True,   help='If false, forecaster treats first t-1 tokens as warmup.')
+    parser.add_argument('--seq2seq',        type=str2bool,  required=True,   help='If false, forecaster treats first t-1 tokens as warmup.')
+    parser.add_argument('--context',        type=str2bool, required=True, help='Include context sequence if true.')
     parser.add_argument('--batch_size',     type=int,   default=100)
     parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
 
@@ -86,7 +96,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         hidden_dim = args.hidden_size,
         seq2seq = args.seq2seq,
         omega = args.conv_height,
-        context_dim = Xc.shape[-1]
+        context = args.context
     )
 
     # === Instantiate optimizer and loss ===
@@ -100,7 +110,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
             masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
             masked_metrics.SequenceCompleteness(args.seq2seq)
         ],
-        # run_eagerly=True
+        run_eagerly=True
     )
 
     # === Train model ===
@@ -212,7 +222,5 @@ def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, args, start_offset=23)
     fig.autofmt_xdate()
     plt.savefig(f'ts_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_seq2seq={args.seq2seq}')
     
-    
-
 if __name__=="__main__":
     main(parse_args())

@@ -11,8 +11,9 @@
             "program": "./main.py",
             "console": "integratedTerminal",
             "args": [
-                "--epochs","3",
-                "--seq2seq","True"
+                // "--epochs","3",
+                "--seq2seq","False",
+                "--context","True"
             ]
             // "justMyCode": false
         },
