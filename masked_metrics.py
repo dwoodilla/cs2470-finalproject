@@ -50,10 +50,16 @@ class MaskedMAE(keras.losses.Loss):
         return ae_mean_b_t
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='R2CoD')
-class R2CoD(keras.losses.Loss):
-    def __init__(self, seq2seq, name='R2CoD'):
+class R2CoD(keras.metrics.Metric):
+    def __init__(self, seq2seq, output_dim=5, name='R2CoD'):
         super().__init__(name=name)
         self.seq2seq = seq2seq
+        self.value = self.add_variable(
+            shape=(output_dim,),
+            initializer='zeros',
+            name='value',
+            aggregation='none'
+        )
     
     def call(self, y_true, y_pred):
 
@@ -64,12 +70,23 @@ class R2CoD(keras.losses.Loss):
             y_true_dewindowed = tf.math.divide_no_nan(tf.reduce_sum(y_true_no_nan, 1), num_not_nan_per_window)
         else: #seq2tok
             y_pred_dewindowed = y_pred
-            y_true_dewindowed = y_true[:,-1,:]
+            y_true_dewindowed = y_true_no_nan[:,-1,:]
         y_true_mean = tf.reduce_mean(y_true_dewindowed, axis=0)
         ss_res = tf.reduce_sum(tf.square(tf.subtract(y_true_dewindowed, y_pred_dewindowed)), axis=0)
         ss_tot = tf.reduce_sum(tf.square(tf.subtract(y_true_dewindowed, y_true_mean)), axis=0)
-        cod = 1 - tf.math.divide_no_nan(ss_res, ss_tot)
+        cod = 1 - tf.math.divide(ss_res, ss_tot) # allow nans/infs
         return cod
+    
+    def update_state(self, y_true, y_pred, **kwargs):
+        self.value = self.call(y_true, y_pred)
+    def result(self): 
+        return {
+            'R2_co' : self.value[0],
+            'R2_no' : self.value[1], 
+            'R2_no2': self.value[2], 
+            'R2_o3' : self.value[3], 
+            'R2_pm25':self.value[4]
+        }
 
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='seq_completeness')

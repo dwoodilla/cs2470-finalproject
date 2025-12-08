@@ -13,7 +13,7 @@
             "args": [
                 // "--epochs","3",
                 "--seq2seq","False",
-                "--context","False",
+                "--context","True",
                 "--eager", "True"
             ]
             // "justMyCode": false

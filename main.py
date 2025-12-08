@@ -90,11 +90,12 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         histogram_freq=1,
         write_images=True
     )
-    tf.debugging.experimental.enable_dump_debug_info(
-        dump_root = os.path.join(DIR, 'debug_logs'),
-        tensor_debug_mode='NO_TENSOR',
-        circular_buffer_size=-1
-    )
+    # tf.debugging.experimental.enable_dump_debug_info(
+    #     dump_root = os.path.join(DIR, 'debug_logs'),
+    #     # tensor_debug_mode='FULL_HEALTH',
+    #     # tensor_debug_mode='CURT_HEALTH',
+    #     circular_buffer_size=-1
+    # )
 
     # === Instantiate model ===
     tsf_model = models.LSTNet(
@@ -115,7 +116,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         loss = masked_metrics.MaskedMSE(seq2seq=args.seq2seq),
         metrics = [
             masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
-            masked_metrics.R2CoD(seq2seq=args.seq2seq),
+            # masked_metrics.R2CoD(seq2seq=args.seq2seq),
             masked_metrics.SequenceCompleteness(args.seq2seq)
         ],
         run_eagerly=args.eager
@@ -151,23 +152,9 @@ def main(args):
     test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
     model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
 
-    # model = load_model(TIME, args.seq2seq)
-    # model = keras.models.load_model('runs/2025-12-07_21:53:58/model_s2s=True.keras')
+    Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
 
-    # model = keras.models.load_model(
-    #     'runs/2025-12-07_21:53:58/model_s2s=True.keras',
-    #     custom_objects={
-    #         "MaskedMSE": masked_metrics.MaskedMSE,
-    #         "MaskedMAE": masked_metrics.MaskedMAE,
-    #         "SequenceCompleteness": masked_metrics.SequenceCompleteness
-    #     }
-    # )
-
-    # Y_inter, Y_pred = interpolate(model, Xs, Xc, Y, time=TIME)
-    Y_inter = np.load('runs/2025-12-07_22:38:10/y_inter.npz')['arr_0']
-    Y_pred  = np.load('runs/2025-12-07_22:38:10/y_pred.npz')['arr_0']
-
-    # plot_interpolated(Y_inter, Y_pred, ds, args, time=TIME)
+    plot_interpolated(Y_inter, Y_pred, ds, DIR, args.seq2seq)
 
 
 def interpolate(model, Xs, Xc, Y ):
