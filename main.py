@@ -28,6 +28,7 @@ def parse_args(args=None):
     parser.add_argument('--conv_height',    type=int,   default=6,      help='Length of time sequence window.')
     parser.add_argument('--seq2seq',        type=str2bool,  required=True,   help='If false, forecaster treats first t-1 tokens as warmup.')
     parser.add_argument('--context',        type=str2bool, required=True, help='Include context sequence if true.')
+    parser.add_argument('--eager',          type=str2bool, default=False)
     parser.add_argument('--batch_size',     type=int,   default=100)
     parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
 
@@ -98,6 +99,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         omega = args.conv_height,
         context = args.context
     )
+    tsf_model((tf.zeros((1,24,10)), tf.zeros((1,24,24))))
 
     # === Instantiate optimizer and loss ===
     optimizer = keras.optimizers.Adam()
@@ -110,7 +112,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
             masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
             masked_metrics.SequenceCompleteness(args.seq2seq)
         ],
-        run_eagerly=True
+        run_eagerly=args.eager
     )
 
     # === Train model ===

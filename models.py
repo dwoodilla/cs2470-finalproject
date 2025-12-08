@@ -50,6 +50,8 @@ class LSTNet(keras.Model):
             activation=None
         )
         self.flatten = keras.layers.Flatten()
+
+        # self.build(((None, 24, self.sequence_dim),(None,24,self.context_dim)))
     
     def call(self, inputs:tf.Tensor, training=None, mask=None) -> tf.Tensor:
 
@@ -77,48 +79,70 @@ class LSTNet(keras.Model):
         y = highway_out + y 
         return y
     
+    @tf.function
     def train_step(self, inputs):
         (Xs, Xc), Y = inputs
         BN = tf.shape(Xs)[0]
-        Xs_obs = Xs[0]
-        forced_prediction_arr = tf.TensorArray(tf.float32, size=BN)
-        # prediction_arr        = tf.TensorArray(tf.float32, size=BN)
-        loss_arr = tf.TensorArray(tf.float32, size=BN)
-        grads_arr = tf.TensorArray(tf.float32, size=BN)
+        Xs_obs = tf.expand_dims(Xs[0], 0)
         N = tf.constant(0)
 
-        def cond(N, Xs_obs, loss_arr, grads_arr):
-            return tf.less(N, BN)
-        def body(N, Xs_obs, loss_arr, grads_arr):
-            tf.print("Batch progress: ", N, "/", BN, end="\r")
+        grads_running = [tf.zeros_like(v) for v in self.trainable_variables]
+        loss_running = tf.constant(0.0, dtype=tf.float32)
+        
+        # forced_prediction_arr = tf.TensorArray(tf.float32, size=BN)
+        pred_arr = tf.TensorArray(tf.float32, size=BN)
+        # loss_arr = tf.TensorArray(tf.float32, size=BN)
 
-            Xs_obs_3 = tf.expand_dims(Xs_obs, 0)
+        def cond(N, Xs_obs_3, loss_running, grads_running, pred_arr):
+            return tf.less(N, BN)
+        def body(N, Xs_obs_3, loss_running, grads_running, pred_arr):
+            # tf.print("Batch progress: ", N, "/", BN, end="\r")
+
             Xc_obs_3 = tf.expand_dims(Xc[N], 0)
             Y_obs_3  = tf.stop_gradient(tf.expand_dims(Y[N], 0))
 
             with tf.GradientTape() as t:
                 Y_pred_3 = self((Xs_obs_3, Xc_obs_3), training=True)
                 loss = self.loss(Y_obs_3, Y_pred_3)
-
-            loss_arr.write(N, loss)
             grads = t.gradient(loss, self.trainable_variables)
-            grads_arr.write(N, grads)
+            
+            def running_mean(running, grad):
+                return running + ((grad - running)/(tf.cast(N+1, tf.float32)))
+            grads_running = tf.nest.map_structure(running_mean, grads_running, grads)
+            loss_running  = loss_running + ((loss - loss_running)/tf.cast(N+1, tf.float32))
+
+            # loss_arr = loss_arr.write(N, loss)
+            pred_arr = pred_arr.write(N, Y_pred_3)
 
             finite_mask_3 = tf.stop_gradient(tf.math.is_finite(Y_obs_3))
             Y_obs_3_nansafe = tf.stop_gradient(tf.where(finite_mask_3, Y_obs_3, tf.zeros_like(Y_obs_3)))
             Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred_3)
 
-            Xs_next = tf.squeeze(tf.concat([Y_pred_forced_3, tf.cast(finite_mask_3, tf.float32)], axis=-1))
+            Xs_next = tf.concat([Y_pred_forced_3, tf.cast(finite_mask_3, tf.float32)], axis=-1)
             
-            return N+1, Xs_next, loss_arr, grads_arr
+            return N+1, Xs_next, loss_running, grads_running, pred_arr
         
-        _, _, loss_arr, grads_arr = tf.while_loop(
+        _, _, loss_running, grads_running, pred_arr = tf.while_loop(
             cond,
             body,
-            loop_vars = (N, Xs_obs, loss_arr, grads_arr),
+            loop_vars = (N, Xs_obs, loss_running, grads_running, pred_arr),
             parallel_iterations=1,
             maximum_iterations=BN
         ) # type: ignore
+
+        batch_preds = pred_arr.concat()
+        # batch_loss = loss_arr.concat()
+        self.optimizer.apply_gradients(zip(grads_running, self.trainable_variables))
+
+        for metric in self.metrics:
+            if metric.name == "loss":
+                metric.update_state(loss_running)
+            else:
+                metric.update_state(Y, batch_preds)
+
+        # Return a dict mapping metric names to current value
+        return {m.name: m.result() for m in self.metrics}
+
     
     @tf.function
     def interpolate(self, Xs, Xc, Y):
@@ -181,21 +205,23 @@ class LSTNet(keras.Model):
         }
         return {**base_config, **config}
 
-    def build(self, input_shape):
-        Xs_shape, Xc_shape = input_shape
-        if self.context_dim:
-            in_d = Xs_shape[-1] + Xc_shape[-1]
-        else: in_d = Xs_shape[-1]
+    # def build(self, input_shape):
+    #     Xs_shape, Xc_shape = input_shape
+    #     if self.context_dim:
+    #         in_d = Xs_shape[-1] + Xc_shape[-1]
+    #     else: in_d = Xs_shape[-1]
 
-        self.pad.build((None, 24, in_d))
-        self.conv.build((None, 24+(self.omega-1), in_d, 1))
-        self.gru.build((None, 24, self.hidden_dim))
-        if self.seq2seq:
-            self.latent_projection.build((None, self.hidden_dim))
-        else: 
-            self.latent_projection.build((None, 24, self.hidden_dim))
+    #     self.pad.build((None, 24, in_d))
+    #     self.conv.build((None, 24+(self.omega-1), in_d, 1))
+    #     self.gru.build((None, 24, self.hidden_dim))
+    #     if self.seq2seq:
+    #         self.latent_projection.build((None, self.hidden_dim))
+    #     else: 
+    #         self.latent_projection.build((None, 24, self.hidden_dim))
 
-        self.flatten.build((None, 24, in_d))
-        if not self.seq2seq:
-            self.highway_layer.build((None, 24 * in_d))
+    #     self.flatten.build((None, 24, in_d))
+    #     if not self.seq2seq:
+    #         self.highway_layer.build((None, 24 * in_d))
+        
+    #     self.add_weight
         
