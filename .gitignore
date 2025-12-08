@@ -6,6 +6,7 @@ scrap/
 logs/
 models/
 runs/
+runs*
 
 
 # Byte-compiled / optimized / DLL files
@@ -147,9 +148,9 @@ celerybeat.pid
 # Environments
 .env
 .envrc
-.venv
+# .venv
 env/
-venv/
+# venv/
 ENV/
 env.bak/
 venv.bak/

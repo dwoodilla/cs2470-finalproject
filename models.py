@@ -16,6 +16,8 @@ class LSTNet(keras.Model):
         context_dim:int=24,
         **kwargs
     ):
+        # if isinstance(kwargs['dtype']["DType_Policy"], str):
+        #     kwargs["DType_Policy"] = keras.mixed_precision.Policy(kwargs["DType_Policy"])
         super().__init__(**kwargs)
         self.omega = omega
         self.hidden_dim = hidden_dim
@@ -212,14 +214,34 @@ class LSTNet(keras.Model):
 
     @classmethod
     def from_config(cls, config):
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = keras.dtype_policies.deserialize(config["dtype"])
         # pop serialized nested things
         conv_conf = config.pop("conv_config")
         gru_conf = config.pop("gru_config")
         latent_conf = config.pop("latent_projection_config")
         highway_conf = config.pop("highway_config")
-
+        '''
+        sequence_dim:int,
+        hidden_dim:int,
+        seq2seq:bool,
+        omega:int,
+        context:bool,
+        output_dim:int=5, 
+        context_dim:int=24,
+        **kwargs
+        '''
         # instantiate the object using only simple args
         obj = cls(**config)
+        # obj = cls(
+        #     sequence_dim=config["sequence_dim"],
+        #     hidden_dim=config['hidden_dim'],
+        #     seq2seq=config['seq2seq'],
+        #     omega=config['omega'],
+        #     context=config['context'],
+        #     output_dim=config['output_dim'],
+        #     context_dim=config['context_dim']
+        # )
 
         # re-create layers/models from their configs
         obj.conv = keras.layers.deserialize(conv_conf)

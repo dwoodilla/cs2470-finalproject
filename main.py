@@ -41,7 +41,7 @@ def parse_args(args=None):
 
     return parser.parse_args()
 
-def construct_dataset(args, T=24):
+def construct_dataset(batch_size, T=24):
 
     horizon=1
     dataframe_base = read_pickle('aqmet_pd.pkl')
@@ -75,9 +75,9 @@ def construct_dataset(args, T=24):
     val_sz   = int(0.15*card)
     test_sz  = card - (train_sz + val_sz)
     
-    train_ds = ds.take(train_sz).batch(args.batch_size)
-    test_ds  = ds.take(test_sz).batch(args.batch_size)
-    val_ds   = ds.take(val_sz).batch(args.batch_size)
+    train_ds = ds.take(train_sz).batch(batch_size)
+    test_ds  = ds.take(test_sz).batch(batch_size)
+    val_ds   = ds.take(val_sz).batch(batch_size)
 
     Xs, Xc, Y = map(tf.convert_to_tensor, [Xs,Xc,Y])
 
@@ -147,14 +147,13 @@ def save_model(model:keras.models.Model, args):
 #     return keras.models.load_model(path)
 
 def main(args):
+    keras.models.load_model('runs_from_ccv/2025-12-08_14-40-22/model_s2s=False.keras')
+    # test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
+    # model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
 
+    # Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
 
-    test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
-    model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
-
-    Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
-
-    plot_interpolated(Y_inter, Y_pred, ds, DIR, args.seq2seq)
+    # plot_interpolated(Y_inter, Y_pred, ds, DIR, args.seq2seq)
 
 
 def interpolate(model, Xs, Xc, Y ):
