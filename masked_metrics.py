@@ -4,7 +4,7 @@ import models
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='masked_mse')
 class MaskedMSE(keras.losses.Loss):
-    def __init__(self, seq2seq, name='masked_mse'):
+    def __init__(self, seq2seq, reduction=None, name='masked_mse'):
         super().__init__(name=name)
         self.seq2seq = seq2seq
     
@@ -25,10 +25,22 @@ class MaskedMSE(keras.losses.Loss):
         se_mean_b_t = tf.reduce_mean(se_mean_d) # mean across bn and T dims.
         # tf.debugging.assert_all_finite(se_mean_b_t, 'loss not all finite')
         return se_mean_b_t
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'seq2seq':self.seq2seq
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        config['seq2seq'] = keras.losses.deserialize(config['seq2seq'])
+        return cls(**config)
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='masked_mae')
 class MaskedMAE(keras.losses.Loss):
-    def __init__(self, seq2seq, name='masked_mae'):
+    def __init__(self, seq2seq, reduction=None, name='masked_mae'):
         super().__init__(name=name)
         self.seq2seq = seq2seq
     
@@ -48,10 +60,22 @@ class MaskedMAE(keras.losses.Loss):
 
         ae_mean_b_t = tf.reduce_mean(ae_mean_d) # mean across bn and T dims.
         return ae_mean_b_t
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'seq2seq':self.seq2seq
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        config['seq2seq'] = keras.losses.deserialize(config['seq2seq'])
+        return cls(**config)
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='R2CoD')
 class R2CoD(keras.metrics.Metric):
-    def __init__(self, seq2seq, output_dim=5, name='R2CoD'):
+    def __init__(self, seq2seq, reduction=None, output_dim=5, name='R2CoD'):
         super().__init__(name=name)
         self.seq2seq = seq2seq
         self.value = self.add_variable(
@@ -87,15 +111,44 @@ class R2CoD(keras.metrics.Metric):
             'R2_o3' : self.value[3], 
             'R2_pm25':self.value[4]
         }
+    
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'seq2seq':self.seq2seq
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = keras.dtype_policies.deserialize(config["dtype"])
+
+        config['seq2seq'] = keras.metrics.deserialize(config['seq2seq'])
+        return cls(name=config['name'],seq2seq=config['seq2seq'])
+
 
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='seq_completeness')
 class SequenceCompleteness(keras.losses.Loss):
-    def __init__(self, seq2seq, name='seq_completeness'):
+    def __init__(self, seq2seq, reduction=None, name='seq_completeness'):
         super().__init__(name=name)
         self.seq2seq = seq2seq
     
     def call(self, y_true, y_pred):
-
         is_finite_float = tf.stop_gradient(tf.cast(tf.math.is_finite(y_true), dtype=tf.float32))
         return tf.reduce_mean(is_finite_float)
+
+    def get_config(self):
+        config = super().get_config()
+        config.update({
+            'seq2seq':self.seq2seq
+        })
+        return config
+
+    @classmethod
+    def from_config(cls, config):
+        if "dtype" in config and isinstance(config["dtype"], dict):
+            policy = keras.dtype_policies.deserialize(config["dtype"])
+        config['seq2seq'] = keras.losses.deserialize(config['seq2seq'])
+        return cls(**config)

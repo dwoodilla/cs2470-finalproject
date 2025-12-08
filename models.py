@@ -82,7 +82,7 @@ class LSTNet(keras.Model):
         y = highway_out + y 
         return y
     
-    @tf.function
+    # @tf.function
     def train_step(self, inputs):
         (Xs, Xc), Y = inputs
         BN = tf.shape(Xs)[0]
@@ -119,7 +119,11 @@ class LSTNet(keras.Model):
 
             finite_mask_3 = tf.stop_gradient(tf.math.is_finite(Y_obs_3))
             Y_obs_3_nansafe = tf.stop_gradient(tf.where(finite_mask_3, Y_obs_3, tf.zeros_like(Y_obs_3)))
-            Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred)
+            if self.seq2seq:
+                Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred)
+            else:
+                vec_pred_forced = tf.expand_dims(tf.where(finite_mask_3[:,-1,:], Y_obs_3_nansafe[:,-1,:], Y_pred), 0)
+                Y_pred_forced_3 = tf.concat([Y_obs_3_nansafe[:,:-1,:], vec_pred_forced], 1)
 
             Xs_next = tf.concat([Y_pred_forced_3, tf.cast(finite_mask_3, tf.float32)], axis=-1)
             
@@ -147,7 +151,7 @@ class LSTNet(keras.Model):
         return {m.name: m.result() for m in self.metrics}
 
     
-    @tf.function
+    # @tf.function
     def interpolate(self, Xs, Xc, Y):
         BN = tf.shape(Xs)[0] # type: ignore
 
@@ -171,7 +175,12 @@ class LSTNet(keras.Model):
 
             finite_mask_3 = tf.stop_gradient(tf.math.is_finite(Y_obs_3))
             Y_obs_3_nansafe = tf.stop_gradient(tf.where(finite_mask_3, Y_obs_3, tf.zeros_like(Y_obs_3)))
-            Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred_3)
+
+            if self.seq2seq:
+                Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred_3)
+            else:
+                vec_pred_forced = tf.expand_dims(tf.where(finite_mask_3[:,-1,:], Y_obs_3_nansafe[:,-1,:], Y_pred_3), 0)
+                Y_pred_forced_3 = tf.concat([Y_obs_3_nansafe[:,:-1,:], vec_pred_forced], 1)
 
             Xs_next = tf.squeeze(tf.concat([Y_pred_forced_3, tf.cast(finite_mask_3, tf.float32)], axis=-1))
 
@@ -203,10 +212,8 @@ class LSTNet(keras.Model):
             "context": self.context,
             "context_dim": self.context_dim,
             "output_dim": self.output_dim,
-            # serialize nested layers/models (they become plain dicts)
             "conv_config": keras.layers.serialize(self.conv),
             "gru_config": keras.layers.serialize(self.gru),
-            # latent_projection is a Sequential model — store its config
             "latent_projection_config": self.latent_projection.get_config(),
             "highway_config": keras.layers.serialize(self.highway_layer)
         }
@@ -216,37 +223,14 @@ class LSTNet(keras.Model):
     def from_config(cls, config):
         if "dtype" in config and isinstance(config["dtype"], dict):
             policy = keras.dtype_policies.deserialize(config["dtype"])
-        # pop serialized nested things
         conv_conf = config.pop("conv_config")
         gru_conf = config.pop("gru_config")
         latent_conf = config.pop("latent_projection_config")
         highway_conf = config.pop("highway_config")
-        '''
-        sequence_dim:int,
-        hidden_dim:int,
-        seq2seq:bool,
-        omega:int,
-        context:bool,
-        output_dim:int=5, 
-        context_dim:int=24,
-        **kwargs
-        '''
-        # instantiate the object using only simple args
         obj = cls(**config)
-        # obj = cls(
-        #     sequence_dim=config["sequence_dim"],
-        #     hidden_dim=config['hidden_dim'],
-        #     seq2seq=config['seq2seq'],
-        #     omega=config['omega'],
-        #     context=config['context'],
-        #     output_dim=config['output_dim'],
-        #     context_dim=config['context_dim']
-        # )
 
-        # re-create layers/models from their configs
         obj.conv = keras.layers.deserialize(conv_conf)
         obj.gru = keras.layers.deserialize(gru_conf)
-        # latent_projection was a Sequential; rebuild it
         obj.latent_projection = keras.models.Sequential.from_config(latent_conf)
         obj.highway_layer = keras.layers.deserialize(highway_conf)
 
