@@ -103,8 +103,8 @@ class LSTNet(keras.Model):
             Y_obs_3  = tf.stop_gradient(tf.expand_dims(Y[N], 0))
 
             with tf.GradientTape() as t:
-                Y_pred_3 = self((Xs_obs_3, Xc_obs_3), training=True)
-                loss = self.loss(Y_obs_3, Y_pred_3)
+                Y_pred = self((Xs_obs_3, Xc_obs_3), training=True)
+                loss = self.loss(Y_obs_3, Y_pred)
             grads = t.gradient(loss, self.trainable_variables)
             
             def running_mean(running, grad):
@@ -113,11 +113,11 @@ class LSTNet(keras.Model):
             loss_running  = loss_running + ((loss - loss_running)/tf.cast(N+1, tf.float32))
 
             # loss_arr = loss_arr.write(N, loss)
-            pred_arr = pred_arr.write(N, Y_pred_3)
+            pred_arr = pred_arr.write(N, Y_pred)
 
             finite_mask_3 = tf.stop_gradient(tf.math.is_finite(Y_obs_3))
             Y_obs_3_nansafe = tf.stop_gradient(tf.where(finite_mask_3, Y_obs_3, tf.zeros_like(Y_obs_3)))
-            Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred_3)
+            Y_pred_forced_3 = tf.where(finite_mask_3, Y_obs_3_nansafe, Y_pred)
 
             Xs_next = tf.concat([Y_pred_forced_3, tf.cast(finite_mask_3, tf.float32)], axis=-1)
             

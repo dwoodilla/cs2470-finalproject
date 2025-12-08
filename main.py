@@ -113,6 +113,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         loss = masked_metrics.MaskedMSE(seq2seq=args.seq2seq),
         metrics = [
             masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
+            masked_metrics.R2CoD(seq2seq=args.seq2seq),
             masked_metrics.SequenceCompleteness(args.seq2seq)
         ],
         run_eagerly=args.eager
@@ -147,7 +148,7 @@ def save_model(model:keras.models.Model, args):
 def main(args):
 
     test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
-    # model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
+    model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
 
     # model = load_model(TIME, args.seq2seq)
     # model = keras.models.load_model('runs/2025-12-07_21:53:58/model_s2s=True.keras')

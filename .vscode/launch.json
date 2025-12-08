@@ -12,7 +12,7 @@
             "console": "integratedTerminal",
             "args": [
                 // "--epochs","3",
-                "--seq2seq","True",
+                "--seq2seq","False",
                 "--context","False",
                 "--eager", "True"
             ]
