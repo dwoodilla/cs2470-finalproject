@@ -2,6 +2,7 @@ import tensorflow as tf
 import keras
 import pandas as pd
 import numpy as np
+import masked_metrics
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='lstnet')
 class LSTNet(keras.Model):
@@ -187,23 +188,47 @@ class LSTNet(keras.Model):
 
         Y_interpolated = ta_pred_forced.concat()
         Y_predicted    = ta_pred.concat()
+
         return Y_interpolated, Y_predicted
 
     def get_config(self):
         base_config = super().get_config()
         config = {
-            "sequence_dim":     self.sequence_dim,
-            "context":          self.context,
-            "output_dim":       self.output_dim,
-            "omega":            self.omega,
-            "hidden_dim":       self.hidden_dim,
-            "seq2seq":          self.seq2seq,
-            "conv_layer":         self.conv,
-            "gru_layer":          self.gru,
-            "latent_projection":  self.latent_projection,
-            "highway_layer":      self.highway_layer
+            "sequence_dim": self.sequence_dim,
+            "hidden_dim": self.hidden_dim,
+            "seq2seq": self.seq2seq,
+            "omega": self.omega,
+            "context": self.context,
+            "context_dim": self.context_dim,
+            "output_dim": self.output_dim,
+            # serialize nested layers/models (they become plain dicts)
+            "conv_config": keras.layers.serialize(self.conv),
+            "gru_config": keras.layers.serialize(self.gru),
+            # latent_projection is a Sequential model — store its config
+            "latent_projection_config": self.latent_projection.get_config(),
+            "highway_config": keras.layers.serialize(self.highway_layer)
         }
         return {**base_config, **config}
+
+    @classmethod
+    def from_config(cls, config):
+        # pop serialized nested things
+        conv_conf = config.pop("conv_config")
+        gru_conf = config.pop("gru_config")
+        latent_conf = config.pop("latent_projection_config")
+        highway_conf = config.pop("highway_config")
+
+        # instantiate the object using only simple args
+        obj = cls(**config)
+
+        # re-create layers/models from their configs
+        obj.conv = keras.layers.deserialize(conv_conf)
+        obj.gru = keras.layers.deserialize(gru_conf)
+        # latent_projection was a Sequential; rebuild it
+        obj.latent_projection = keras.models.Sequential.from_config(latent_conf)
+        obj.highway_layer = keras.layers.deserialize(highway_conf)
+
+        return obj
 
     # def build(self, input_shape):
     #     Xs_shape, Xc_shape = input_shape

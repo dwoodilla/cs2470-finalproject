@@ -8,6 +8,11 @@ import masked_metrics
 import pandas as pd
 from pandas import read_pickle
 import matplotlib.pyplot as plt
+import os
+from plot_helpers import plot_interpolated
+from sklearn.metrics import r2_score
+
+TIME = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
 def parse_args(args=None):
     """
@@ -78,18 +83,16 @@ def construct_dataset(args, T=24):
 
 def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
-    logdir = f'./logs/fit/{datetime.now().strftime("%Y%m%d-%H%M%S")}'
-    # tbd_callback = keras.callbacks.TensorBoard(
-    #     log_dir=logdir, 
-    #     histogram_freq=1,
-    #     write_images=True
-    # )
-
-    # tf.debugging.experimental.enable_dump_debug_info(
-    #     "/Users/mikewoodilla/csci2470/fp/tmp/tfdbg2_logdir",
-    #     tensor_debug_mode='FULL_HEALTH',
-    #     circular_buffer_size=-1
-    # )
+    tbd_callback = keras.callbacks.TensorBoard(
+        log_dir=f'./runs/{TIME}/callbacks', 
+        histogram_freq=1,
+        write_images=True
+    )
+    tf.debugging.experimental.enable_dump_debug_info(
+        f"./runs/{TIME}/debug_logs",
+        tensor_debug_mode='NO_TENSOR',
+        circular_buffer_size=-1
+    )
 
     # === Instantiate model ===
     tsf_model = models.LSTNet(
@@ -119,110 +122,62 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
     tsf_model.fit(
         x = train_ds,
         validation_data=val_ds,
-        epochs = args.epochs
-        # callbacks=[tbd_callback]
+        epochs = args.epochs,
+        callbacks=[tbd_callback]
     )
     tsf_model.evaluate(
         x = test_ds
     )
-    tsf_model.save(f'./models/tsf_model_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_s2s={args.seq2seq}.keras')
+
+    save_model(tsf_model, args)
+
+    # tsf_model.save(f'./runs/{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}/model_s2s={args.seq2seq}.keras')
     return tsf_model
 
+def save_model(model:keras.models.Model, args):
+    dirname = f'./runs/{TIME}/'
+    filename = f'model_s2s={args.seq2seq}.keras'
+    os.makedirs(dirname, exist_ok=True)
+    model.save(os.path.join(dirname, filename))
+# def load_model(time:str, seq2seq:bool):
+#     dirname = f'runs/{time}'
+#     path = os.path.join(dirname, name)
+#     return keras.models.load_model(path)
+
 def main(args):
+
     test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
-    model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
+    # model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
 
+    # model = load_model(TIME, args.seq2seq)
+    # model = keras.models.load_model('runs/2025-12-07_21:53:58/model_s2s=True.keras')
+
+    # model = keras.models.load_model(
+    #     'runs/2025-12-07_21:53:58/model_s2s=True.keras',
+    #     custom_objects={
+    #         "MaskedMSE": masked_metrics.MaskedMSE,
+    #         "MaskedMAE": masked_metrics.MaskedMAE,
+    #         "SequenceCompleteness": masked_metrics.SequenceCompleteness
+    #     }
+    # )
+
+    # Y_inter, Y_pred = interpolate(model, Xs, Xc, Y, time=TIME)
+    Y_inter = np.load('runs/2025-12-07_22:38:10/y_inter.npz')['arr_0']
+    Y_pred  = np.load('runs/2025-12-07_22:38:10/y_pred.npz')['arr_0']
+
+    report_r2()
+
+    # plot_interpolated(Y_inter, Y_pred, ds, args, time=TIME)
+
+def report_r2(y_inter, y_pred, y_true):
+    r2_score(y_inter, y_pred)
+
+def interpolate(model, Xs, Xc, Y, time=TIME):
     Y_inter, Y_pred = model.interpolate(Xs, Xc, Y)
+    os.makedirs(f'./runs/{time}', exist_ok=True)
+    np.savez_compressed(f'./runs/{TIME}/y_inter.npz', Y_inter.numpy())
+    np.savez_compressed(f'./runs/{TIME}/y_pred.npz', Y_pred.numpy())
+    return Y_inter, Y_pred
 
-    plot_interpolated(Y_inter, Y_pred, ds, args)
-
-def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, args, start_offset=23):
-    """
-    Plot interpolated vs predicted time series.
-    - Y_interpolated, Y_pred: tf.Tensor or numpy arrays. Expected shape often (N, T, F) or (N, F).
-    - pd_dataset: DataFrame containing the timestamps in its index (used with start_offset).
-    - feature_names: list of strings length F. Defaults to ['co','no','no2','o3','pm25'].
-    - start_offset: integer (23 in your code) to slice timestamps: timestamps = pd_dataset.index[start_offset:].
-    """
-    feature_names = ['co', 'no', 'no2', 'o3', 'pm25']
-
-    # Y_inter_np = tf.make_ndarray(Y_interpolated)
-    # Y_pred_np  = tf.make_ndarray(Y_pred)
-    Y_inter_np = Y_interpolated.numpy()
-    Y_pred_np = Y_pred.numpy()
-
-    # If tensors are 3D (batch, T, features) and you want the last time-step like your snippet:
-    Y_inter_sliced = Y_inter_np[:, -1, :]
-    Y_pred_sliced = Y_pred_np[:, -1, :]
-
-    # timestamps (use same slicing as your snippet)
-    timestamps = pd_dataset.index[start_offset:]
-
-    # align lengths (defensive)
-    n = min(len(timestamps), Y_inter_sliced.shape[0], Y_pred_sliced.shape[0])
-    if n < max(len(timestamps), Y_inter_sliced.shape[0], Y_pred_sliced.shape[0]):
-        print(f"Time sequences are unaligned:\nlen(timestamps)={len(timestamps)}\nY_inter_sliced.shape[0]={Y_inter_sliced.shape[0]}\nY_pred_sliced.shape[0]={Y_pred_sliced.shape[0]}")
-
-    timestamps = timestamps[:n]
-    Y_inter_sliced = Y_inter_sliced[:n]
-    Y_pred_sliced = Y_pred_sliced[:n]
-
-    # Build DataFrames (use timestamps as index)
-    df_inter = pd.DataFrame(Y_inter_sliced, index=timestamps, columns=feature_names)
-    df_pred  = pd.DataFrame(Y_pred_sliced,  index=timestamps, columns=feature_names)
-    df_true  = pd_dataset.iloc[:n, -5:]
-    
-
-    # Plot: one subplot per feature
-    n_features = 5
-    figsize = (12, 2.5 * n_features)
-    fig, axes = plt.subplots(nrows=n_features, ncols=1, figsize=figsize, sharex=True)
-
-    for i, feat in enumerate(df_inter.columns):
-        ax = axes[i]
-
-        ax.plot(df_inter.index, df_inter[feat], label='interpolated')
-        ax.plot(df_pred.index,  df_pred[feat],  label='predicted', linestyle='--')
-        ax.plot(df_true.index, df_true[feat], label='true')
-
-        # true_unknown = df_true[feat].isna()
-                # ======== ADD SHADING FOR NAN REGIONS ========
-        true_series = df_true[feat]
-        is_nan = true_series.isna()
-
-        # Identify contiguous NaN intervals
-        nan_groups = []
-        in_nan = False
-        start = None
-
-        prev_t = None
-        for t, nan_flag in zip(true_series.index, is_nan):
-            if prev_t is None: prev_t = t
-            if nan_flag and not in_nan:
-                in_nan = True
-                start = t
-            if not nan_flag and in_nan:
-                in_nan = False
-                nan_groups.append((start, prev_t))
-            prev_t = t
-
-        # If we ended inside a NaN block
-        if in_nan:
-            nan_groups.append((start, true_series.index[-1]))
-
-        # Shade each NaN block
-        for (t_start, t_end) in nan_groups:
-            ax.axvspan(t_start, t_end, alpha=0.15, color='salmon')
-
-        ax.set_ylabel(feat)
-        ax.grid(alpha=0.25)
-        ax.legend(loc='upper right')
-
-    # Improve x-axis labeling
-    plt.xlabel('time')
-    plt.tight_layout()
-    fig.autofmt_xdate()
-    plt.savefig(f'ts_{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}_seq2seq={args.seq2seq}')
-    
 if __name__=="__main__":
     main(parse_args())

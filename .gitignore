@@ -5,6 +5,7 @@ preprocessed/
 scrap/
 logs/
 models/
+runs/
 
 
 # Byte-compiled / optimized / DLL files
