@@ -80,7 +80,7 @@ class LSTNet(keras.Model):
         y = highway_out + y 
         return y
     
-    @tf.function
+    # @tf.function
     def train_step(self, inputs):
         (Xs, Xc), Y = inputs
         BN = tf.shape(Xs)[0]

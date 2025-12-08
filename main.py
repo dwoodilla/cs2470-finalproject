@@ -12,7 +12,9 @@ import os
 from plot_helpers import plot_interpolated
 from sklearn.metrics import r2_score
 
-TIME = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+TIME = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+DIR  = os.path.normpath(f'./runs/{TIME}')
+os.makedirs(DIR)
 
 def parse_args(args=None):
     """
@@ -84,12 +86,12 @@ def construct_dataset(args, T=24):
 def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
     tbd_callback = keras.callbacks.TensorBoard(
-        log_dir=f'./runs/{TIME}/callbacks', 
+        log_dir=os.path.join(DIR, 'callbacks'),
         histogram_freq=1,
         write_images=True
     )
     tf.debugging.experimental.enable_dump_debug_info(
-        f"./runs/{TIME}/debug_logs",
+        dump_root = os.path.join(DIR, 'debug_logs'),
         tensor_debug_mode='NO_TENSOR',
         circular_buffer_size=-1
     )
@@ -136,16 +138,15 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
     return tsf_model
 
 def save_model(model:keras.models.Model, args):
-    dirname = f'./runs/{TIME}/'
     filename = f'model_s2s={args.seq2seq}.keras'
-    os.makedirs(dirname, exist_ok=True)
-    model.save(os.path.join(dirname, filename))
+    model.save(os.path.join(DIR, filename))
 # def load_model(time:str, seq2seq:bool):
 #     dirname = f'runs/{time}'
 #     path = os.path.join(dirname, name)
 #     return keras.models.load_model(path)
 
 def main(args):
+
 
     test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
     model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
@@ -166,18 +167,14 @@ def main(args):
     Y_inter = np.load('runs/2025-12-07_22:38:10/y_inter.npz')['arr_0']
     Y_pred  = np.load('runs/2025-12-07_22:38:10/y_pred.npz')['arr_0']
 
-    report_r2()
-
     # plot_interpolated(Y_inter, Y_pred, ds, args, time=TIME)
 
-def report_r2(y_inter, y_pred, y_true):
-    r2_score(y_inter, y_pred)
 
-def interpolate(model, Xs, Xc, Y, time=TIME):
+def interpolate(model, Xs, Xc, Y ):
     Y_inter, Y_pred = model.interpolate(Xs, Xc, Y)
-    os.makedirs(f'./runs/{time}', exist_ok=True)
-    np.savez_compressed(f'./runs/{TIME}/y_inter.npz', Y_inter.numpy())
-    np.savez_compressed(f'./runs/{TIME}/y_pred.npz', Y_pred.numpy())
+
+    np.savez_compressed(os.path.join(DIR, 'y_inter.npz'), Y_inter.numpy())
+    np.savez_compressed(os.path.join(DIR, 'y_pred.npz'), Y_pred.numpy())
     return Y_inter, Y_pred
 
 if __name__=="__main__":

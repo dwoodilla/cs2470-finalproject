@@ -74,9 +74,9 @@ class R2CoD(keras.losses.Loss):
 
 @keras.saving.register_keras_serializable(package='cs2470fp', name='seq_completeness')
 class SequenceCompleteness(keras.losses.Loss):
-    def __init__(self, name='seq_completeness'):
+    def __init__(self, seq2seq, name='seq_completeness'):
         super().__init__(name=name)
-        self.seq2seq = True
+        self.seq2seq = seq2seq
     
     def call(self, y_true, y_pred):
 
