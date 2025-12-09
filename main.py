@@ -70,18 +70,33 @@ def construct_dataset(batch_size, T=24):
     Y  = dataframe[:,:,-5:]
 
     ds = tf.data.Dataset.from_tensor_slices(((Xs,Xc),Y))
+
     card = ds.cardinality().numpy()
     train_sz = int(0.7*card)
     val_sz   = int(0.15*card)
     test_sz  = card - (train_sz + val_sz)
-    
-    train_ds = ds.take(train_sz).batch(batch_size)
-    test_ds  = ds.take(test_sz).batch(batch_size)
-    val_ds   = ds.take(val_sz).batch(batch_size)
+
+    train_ds    = ds.take(train_sz).batch(batch_size)
+    rest        = ds.skip(train_sz)
+    val_ds      = rest.take(val_sz).batch(batch_size)
+    test_ds     = rest.skip(val_sz).batch(batch_size)
 
     Xs, Xc, Y = map(tf.convert_to_tensor, [Xs,Xc,Y])
-
     return train_ds, test_ds, val_ds, Xs, Xc, Y, dataframe_base
+
+    # card = ds.cardinality().numpy()
+    # train_sz = int(0.7*card)
+    # val_sz   = int(0.15*card)
+    # test_sz  = card - (train_sz + val_sz)
+    
+    # train_ds = ds.take(train_sz).batch(batch_size)
+    # rest = ds.skip(train_dz)
+    # test_ds  = ds.take(test_sz).batch(batch_size)
+    # val_ds   = ds.take(val_sz).batch(batch_size)
+
+    # Xs, Xc, Y = map(tf.convert_to_tensor, [Xs,Xc,Y])
+
+    # return train_ds, test_ds, val_ds, Xs, Xc, Y, dataframe_base
 
 def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
@@ -139,7 +154,7 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
     return tsf_model
 
 def save_model(model:keras.models.Model, args):
-    filename = f'model_s2s={args.seq2seq}.keras'
+    filename = f'model_s2s={args.seq2seq}_ctx={args.context}.keras'
     model.save(os.path.join(DIR, filename))
 # def load_model(time:str, seq2seq:bool):
 #     dirname = f'runs/{time}'
@@ -147,13 +162,12 @@ def save_model(model:keras.models.Model, args):
 #     return keras.models.load_model(path)
 
 def main(args):
-    keras.models.load_model('runs_from_ccv/2025-12-08_14-40-22/model_s2s=False.keras')
-    # test_ds, train_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args)
-    # model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
+    train_ds, test_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args.batch_size)
+    model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
 
-    # Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
+    Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
 
-    # plot_interpolated(Y_inter, Y_pred, ds, DIR, args.seq2seq)
+    plot_interpolated(Y_inter, Y_pred, ds, DIR, args.seq2seq)
 
 
 def interpolate(model, Xs, Xc, Y ):

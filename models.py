@@ -82,7 +82,7 @@ class LSTNet(keras.Model):
         y = highway_out + y 
         return y
     
-    # @tf.function
+    @tf.function
     def train_step(self, inputs):
         (Xs, Xc), Y = inputs
         BN = tf.shape(Xs)[0]
@@ -151,7 +151,7 @@ class LSTNet(keras.Model):
         return {m.name: m.result() for m in self.metrics}
 
     
-    # @tf.function
+    @tf.function
     def interpolate(self, Xs, Xc, Y):
         BN = tf.shape(Xs)[0] # type: ignore
 
