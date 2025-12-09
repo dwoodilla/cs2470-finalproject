@@ -4,7 +4,7 @@ import tensorflow as tf
 import matplotlib.pyplot as plt
 import os
 
-def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq):
+def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq, _dir):
     feature_names = ['co', 'no', 'no2', 'o3', 'pm25']
 
     # Convert Tensors → numpy
@@ -54,7 +54,7 @@ def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq):
         plt.tight_layout()
         fig.autofmt_xdate()
 
-        plt.savefig(os.path.join(main.DIR, filename))
+        plt.savefig(os.path.join(_dir, filename))
         plt.close(fig)
 
     # ---------- 1. Predicted ----------
@@ -90,7 +90,7 @@ def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq):
     plt.tight_layout()
     fig.autofmt_xdate()
 
-    plt.savefig(os.path.join(main.DIR, "timeseries_overlay.png"))
+    plt.savefig(os.path.join(_dir, "timeseries_overlay.png"))
     plt.close(fig)
 
 # def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, _dir, seq2seq):
