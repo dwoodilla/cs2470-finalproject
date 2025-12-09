@@ -167,7 +167,7 @@ def main(args):
 
     Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
 
-    plot_interpolated(Y_inter, Y_pred, ds, DIR, args.seq2seq)
+    plot_interpolated(Y_inter, Y_pred, ds, args.seq2seq)
 
 
 def interpolate(model, Xs, Xc, Y ):
