@@ -1,7 +1,0 @@
-Epoch 1/3
-1698/1698 [==============================] - 116s 67ms/step - loss: 7.7970 - masked_mae: 0.9083 - val_loss: 3.7748 - val_masked_mae: 1.0848
-Epoch 2/3
-1698/1698 [==============================] - 119s 70ms/step - loss: 7.5868 - masked_mae: 0.8557 - val_loss: 3.9814 - val_masked_mae: 1.1847
-Epoch 3/3
-1698/1698 [==============================] - 115s 68ms/step - loss: 7.5552 - masked_mae: 0.8348 - val_loss: 3.7220 - val_masked_mae: 1.1117
-364/364 [==============================] - 10s 26ms/step - loss: 3.7221 - masked_mae: 1.1117
