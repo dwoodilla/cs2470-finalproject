@@ -16,15 +16,12 @@ class LSTNet(keras.Model):
         context_dim:int=24,
         **kwargs
     ):
-        # if isinstance(kwargs['dtype']["DType_Policy"], str):
-        #     kwargs["DType_Policy"] = keras.mixed_precision.Policy(kwargs["DType_Policy"])
         super().__init__(**kwargs)
         self.omega = omega
         self.hidden_dim = hidden_dim
         self.sequence_dim = sequence_dim
         self.output_dim = output_dim
         self.seq2seq = seq2seq
-        # self.context_dim = context_dim
         self.context = context
         self.context_dim = context_dim if context else 0
 
@@ -40,7 +37,6 @@ class LSTNet(keras.Model):
         )
         self.gru = keras.layers.GRU(
             units=hidden_dim,
-            # recurrent_activation='relu',
             return_sequences=self.seq2seq
         )
         self.latent_projection = keras.Sequential([
@@ -54,8 +50,6 @@ class LSTNet(keras.Model):
         )
         self.flatten = keras.layers.Flatten()
 
-        # self.build(((None, 24, self.sequence_dim),(None,24,self.context_dim)))
-    
     def call(self, inputs:tf.Tensor, training=None, mask=None) -> tf.Tensor:
 
         Xs, Xc = inputs 
@@ -92,14 +86,12 @@ class LSTNet(keras.Model):
         grads_running = [tf.zeros_like(v) for v in self.trainable_variables]
         loss_running = tf.constant(0.0, dtype=tf.float32)
         
-        # forced_prediction_arr = tf.TensorArray(tf.float32, size=BN)
         pred_arr = tf.TensorArray(tf.float32, size=BN)
-        # loss_arr = tf.TensorArray(tf.float32, size=BN)
 
         def cond(N, Xs_obs_3, loss_running, grads_running, pred_arr):
             return tf.less(N, BN)
+            
         def body(N, Xs_obs_3, loss_running, grads_running, pred_arr):
-            # tf.print("Batch progress: ", N, "/", BN, end="\r")
 
             Xc_obs_3 = tf.expand_dims(Xc[N], 0)
             Y_obs_3  = tf.stop_gradient(tf.expand_dims(Y[N], 0))
@@ -109,12 +101,12 @@ class LSTNet(keras.Model):
                 loss = self.loss(Y_obs_3, Y_pred)
             grads = t.gradient(loss, self.trainable_variables)
             
+            # Keep running average of gradients and loss
             def running_mean(running, grad):
                 return running + ((grad - running)/(tf.cast(N+1, tf.float32)))
             grads_running = tf.nest.map_structure(running_mean, grads_running, grads)
             loss_running  = loss_running + ((loss - loss_running)/tf.cast(N+1, tf.float32))
 
-            # loss_arr = loss_arr.write(N, loss)
             pred_arr = pred_arr.write(N, Y_pred)
 
             finite_mask_3 = tf.stop_gradient(tf.math.is_finite(Y_obs_3))
@@ -235,24 +227,3 @@ class LSTNet(keras.Model):
         obj.highway_layer = keras.layers.deserialize(highway_conf)
 
         return obj
-
-    # def build(self, input_shape):
-    #     Xs_shape, Xc_shape = input_shape
-    #     if self.context_dim:
-    #         in_d = Xs_shape[-1] + Xc_shape[-1]
-    #     else: in_d = Xs_shape[-1]
-
-    #     self.pad.build((None, 24, in_d))
-    #     self.conv.build((None, 24+(self.omega-1), in_d, 1))
-    #     self.gru.build((None, 24, self.hidden_dim))
-    #     if self.seq2seq:
-    #         self.latent_projection.build((None, self.hidden_dim))
-    #     else: 
-    #         self.latent_projection.build((None, 24, self.hidden_dim))
-
-    #     self.flatten.build((None, 24, in_d))
-    #     if not self.seq2seq:
-    #         self.highway_layer.build((None, 24 * in_d))
-        
-    #     self.add_weight
-        

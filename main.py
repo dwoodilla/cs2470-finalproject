@@ -19,7 +19,6 @@ os.makedirs(DIR)
 def parse_args(args=None):
     """
     This argument parser is adapted from HW4: Imcap.
-    Credit goes to HW4 authors.
     """
     def str2bool(v):
         if isinstance(v, bool):
@@ -74,7 +73,6 @@ def construct_dataset(batch_size, T=24):
     card = ds.cardinality().numpy()
     train_sz = int(0.7*card)
     val_sz   = int(0.15*card)
-    test_sz  = card - (train_sz + val_sz)
 
     train_ds    = ds.take(train_sz).batch(batch_size)
     rest        = ds.skip(train_sz)
@@ -84,20 +82,6 @@ def construct_dataset(batch_size, T=24):
     Xs, Xc, Y = map(tf.convert_to_tensor, [Xs,Xc,Y])
     return train_ds, test_ds, val_ds, Xs, Xc, Y, dataframe_base
 
-    # card = ds.cardinality().numpy()
-    # train_sz = int(0.7*card)
-    # val_sz   = int(0.15*card)
-    # test_sz  = card - (train_sz + val_sz)
-    
-    # train_ds = ds.take(train_sz).batch(batch_size)
-    # rest = ds.skip(train_dz)
-    # test_ds  = ds.take(test_sz).batch(batch_size)
-    # val_ds   = ds.take(val_sz).batch(batch_size)
-
-    # Xs, Xc, Y = map(tf.convert_to_tensor, [Xs,Xc,Y])
-
-    # return train_ds, test_ds, val_ds, Xs, Xc, Y, dataframe_base
-
 def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
     tbd_callback = keras.callbacks.TensorBoard(
@@ -105,12 +89,6 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
         histogram_freq=1,
         write_images=True
     )
-    # tf.debugging.experimental.enable_dump_debug_info(
-    #     dump_root = os.path.join(DIR, 'debug_logs'),
-    #     # tensor_debug_mode='FULL_HEALTH',
-    #     # tensor_debug_mode='CURT_HEALTH',
-    #     circular_buffer_size=-1
-    # )
 
     # === Instantiate model ===
     tsf_model = models.LSTNet(
@@ -127,11 +105,10 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
     # === Compile model ===
     tsf_model.compile(
-        optimizer = optimizer,
+        optimizer = optimizer, # type: ignore
         loss = masked_metrics.MaskedMSE(seq2seq=args.seq2seq),
         metrics = [
             masked_metrics.MaskedMAE(seq2seq=args.seq2seq),
-            # masked_metrics.R2CoD(seq2seq=args.seq2seq),
             masked_metrics.SequenceCompleteness(args.seq2seq)
         ],
         run_eagerly=args.eager
@@ -150,16 +127,11 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
     save_model(tsf_model, args)
 
-    # tsf_model.save(f'./runs/{datetime.now().strftime("%Y-%m-%d_%H:%M:%S")}/model_s2s={args.seq2seq}.keras')
     return tsf_model
 
 def save_model(model:keras.models.Model, args):
     filename = f'model_s2s={args.seq2seq}_ctx={args.context}.keras'
     model.save(os.path.join(DIR, filename))
-# def load_model(time:str, seq2seq:bool):
-#     dirname = f'runs/{time}'
-#     path = os.path.join(dirname, name)
-#     return keras.models.load_model(path)
 
 def main(args):
     train_ds, test_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args.batch_size)
