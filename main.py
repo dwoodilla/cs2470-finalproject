@@ -6,44 +6,64 @@ import numpy as np
 import models
 import masked_metrics
 import pandas as pd
-from pandas import read_pickle
-import matplotlib.pyplot as plt
 import os
-from plot_helpers import plot_interpolated
-from sklearn.metrics import r2_score
+from plotly_plot_helpers import plot_interpolated
+import pathlib
+from warnings import warn
+import re
 
-TIME = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-DIR  = os.path.normpath(f'./runs/{TIME}')
-os.makedirs(DIR)
+DATETIME = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+# DIR  = os.path.normpath(f'./runs/{DATETIME}')
+# os.makedirs(DIR)
 
 def parse_args(args=None):
-    """
-    This argument parser is adapted from HW4: Imcap.
-    """
-    def str2bool(v):
-        if isinstance(v, bool):
-            return v
-        if v.lower() in ("yes", "true", "t", "1"):
-            return True
-        if v.lower() in ("no", "false", "f", "0"):
-            return False
-        raise argparse.ArgumentTypeError("Boolean value expected.")
-    
-    parser = argparse.ArgumentParser(description="Let's train some neural nets!", formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--hidden_size',    type=int,   default=256,    help='Hidden size used to instantiate the model.')
-    parser.add_argument('--conv_height',    type=int,   default=6,      help='Length of time sequence window.')
-    parser.add_argument('--seq2seq',        type=str2bool,  required=True,   help='If false, forecaster treats first t-1 tokens as warmup.')
-    parser.add_argument('--context',        type=str2bool, required=True, help='Include context sequence if true.')
-    parser.add_argument('--eager',          type=str2bool, default=False)
-    parser.add_argument('--batch_size',     type=int,   default=100)
-    parser.add_argument('--epochs',         type=int,   default=3,      help='Number of epochs used in training.')
+    def str2path(arg:str):
+        ret = pathlib.Path(arg)
+        if not ret.exists(): raise argparse.ArgumentTypeError(f"Path {arg} does not exist")
+        elif not ret.is_dir(): raise argparse.ArgumentTypeError(f"Path {arg} is not a directory")
+        else: return ret
 
-    return parser.parse_args()
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+    # Program arguments
+    parser.add_argument('--task', choices=['all','train','interpolate'], default='all', type=str, help="Task the program should perform. Interpolation requires a read path to be specified.")
+    parser.add_argument('--read_path', type=str2path, default=None)
+    parser.add_argument('--write_path', type=str2path, default=None)
+    parser.add_argument('--callbacks', action='store_true', help='Flag indicating whether to write callbacks to write_dir.')
+    parser.add_argument('--eager', action='store_true', help='Flag indicating whether to train model eagerly. Ignored if not training.')
+    
+    # Model hyperparameters
+    parser.add_argument('--seq2seq', action='store_true', help='Flag indicating whether to predict next sequence or next token.')
+    parser.add_argument('--context', action='store_true', help='Flag indicating whether to include context sequence as model input.')
+    parser.add_argument('--T', type=int, default=24, help="The length of the sliding time window; i.e. X.shape=(None, T, #pollutants)")
+    parser.add_argument('--epochs', type=int, default=3, help='Number of epochs used in training.')
+    parser.add_argument('--batch_size', type=int, default=100)
+    parser.add_argument('--hidden_layer_size', type=int, default=256, help='Hidden size used to instantiate the model.')
+    parser.add_argument('--conv_height', type=int, default=6, help='Height of the convolution kernel (in hours).')
+
+    args = parser.parse_args()
+
+    require_write = args.task in ['all', 'train'] or args.callbacks
+    require_read  = args.task in ['all', 'interpolate']
+    require_same  = args.task == 'all'
+
+    if require_write and args.write_path is None:
+        print(f"args.write_path is required but not specified; defaulting to ./runs")
+        args.write_path = pathlib.Path('./runs')
+        args.write_path.mkdir(parents=False, exist_ok=True)
+    if require_read and args.read_path is None:
+        print(f"args.read_path is required but not specified; defaulting to ./runs/{DATETIME}") 
+        args.write_path = pathlib.Path(f'./runs/{DATETIME}')
+        args.write_path.mkdir(parents=False, exist_ok=True)
+    if require_same and not args.write_path.joinpath(DATETIME) == args.read_path:
+        raise ValueError("Argument 'task' is 'all' but write_path/DATETIME is not read_path.")
+
+    return args
 
 def construct_dataset(batch_size, T=24):
 
     horizon=1
-    dataframe_base = read_pickle('aqmet_pd.pkl')
+    dataframe_base = pd.read_pickle('aqmet_pd.pkl')
 
     dataframe = dataframe_base.to_numpy(dtype=np.float32)[:,1:]
     dataframe = np.hstack([dataframe[:-horizon,:],dataframe[horizon:,-5:]])
@@ -85,7 +105,7 @@ def construct_dataset(batch_size, T=24):
 def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
     tbd_callback = keras.callbacks.TensorBoard(
-        log_dir=os.path.join(DIR, 'callbacks'),
+        log_dir=str(args.write_path.joinpath('callbacks').absolute()),
         histogram_freq=1,
         write_images=True
     )
@@ -131,15 +151,23 @@ def train_and_save(args, train_ds, test_ds, val_ds, Xs, Xc, Y):
 
 def save_model(model:keras.models.Model, args):
     filename = f'model_s2s={args.seq2seq}_ctx={args.context}.keras'
-    model.save(os.path.join(DIR, filename))
+    model.save(args.write_path.joinpath(filename))
+
+def load_model(path:pathlib.Path):
+    keras.models.load_model(path)
 
 def main(args):
-    train_ds, test_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args.batch_size)
-    model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
-
-    Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
-
-    plot_interpolated(Y_inter, Y_pred, ds, seq2seq=args.seq2seq, _dir=DIR)
+    train_ds, test_ds, val_ds, Xs, Xc, Y, ds = construct_dataset(args.batch_size, T=args.T)
+    if args.task in ['all','train']:
+        model = train_and_save(args, test_ds, train_ds, val_ds, Xs, Xc, Y)
+    else: 
+        ls = os.listdir(args.read_path)
+        modelpath_list = [e for e in os.listdir(args.read_path) if re.match(r'model_*.keras', e)]
+        if not len(modelpath_list)==1: raise ValueError("model_*.keras folder in args.read_dir is missing or not unique.")
+        model = load_model(modelpath_list[0])
+    if args.task in ['all','interpolate']:
+        Y_inter, Y_pred = interpolate(model, Xs, Xc, Y)
+        plot_interpolated(Y_inter, Y_pred, ds, seq2seq=args.seq2seq, _dir=args.write_path)
 
 
 def interpolate(model, Xs, Xc, Y ):

@@ -3,6 +3,9 @@ import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import os
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+import plotly.io as pio
 
 def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq, _dir):
     feature_names = ['co', 'no', 'no2', 'o3', 'pm25']
@@ -15,6 +18,7 @@ def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq, _dir):
 
     timestamps = pd_dataset.index[23:]
 
+    # If pred and inter have different lengths, print warning
     n = min(len(timestamps), Y_inter_sliced.shape[0], Y_pred_sliced.shape[0])
     if n < max(len(timestamps), Y_inter_sliced.shape[0], Y_pred_sliced.shape[0]):
         print(f"Time sequences are unaligned:\n"
@@ -22,6 +26,7 @@ def plot_interpolated(Y_interpolated, Y_pred, pd_dataset, seq2seq, _dir):
               f"Y_inter_sliced.shape[0]={Y_inter_sliced.shape[0]}\n"
               f"Y_pred_sliced.shape[0]={Y_pred_sliced.shape[0]}")
 
+    # Truncate time series to be same length
     timestamps = timestamps[:n]
     Y_inter_sliced = Y_inter_sliced[:n]
     Y_pred_sliced = Y_pred_sliced[:n]
